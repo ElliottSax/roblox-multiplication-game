@@ -1,0 +1,18 @@
+[
+  {
+    "type": "feature",
+    "description": "Add Robot object worth 25 currency with metallic effect",
+    "priority": "high"
+  },
+  {
+    "type": "feature",
+    "description": "Add Phoenix object worth 150 currency with fire trail effect",
+    "priority": "high"
+  },
+  {
+    "type": "bug_fix",
+    "file": "CurrencyService.lua",
+    "issue": "Add validation for negative currency values",
+    "priority": "medium"
+  }
+]
