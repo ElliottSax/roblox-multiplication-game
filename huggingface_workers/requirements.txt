@@ -1,7 +1,7 @@
 # HuggingFace Worker Requirements
 # Minimal dependencies for running on HuggingFace Spaces
 
-gradio==4.8.0
+gradio==4.44.1
 transformers==4.35.0
 torch==2.1.0
 requests==2.31.0

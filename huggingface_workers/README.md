@@ -4,10 +4,11 @@ emoji: 🤖
 colorFrom: blue
 colorTo: purple
 sdk: gradio
-sdk_version: "4.8.0"
+sdk_version: "4.44.1"
 app_file: app.py
 pinned: false
 suggested_hardware: cpu-basic
+suggested_storage: small
 ---
 
 # 🤗 HuggingFace Workers for Roblox Game Development
