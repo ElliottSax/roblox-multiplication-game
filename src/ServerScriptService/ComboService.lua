@@ -7,6 +7,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ComboService = {}
 ComboService.PlayerCombos = {}
 ComboService.ComboTimeout = 3 -- Seconds before combo resets
+ComboService.AchievementService = nil -- Set by init.server.lua
+ComboService.SoundService = nil -- Set by init.server.lua
 
 -- Combo tier thresholds and multipliers
 ComboService.ComboTiers = {
@@ -52,6 +54,12 @@ function ComboService:RegisterGateHit(player, object)
 		combo.HighestCombo = combo.Count
 	end
 
+	-- Update achievement stats
+	if self.AchievementService then
+		self.AchievementService:UpdateStat(player, "MaxCombo", combo.Count, true)
+		self.AchievementService:UpdateStat(player, "GatesPassed", 1, false)
+	end
+
 	-- Calculate multiplier
 	local multiplier = self:GetComboMultiplier(combo.Count)
 	combo.CurrentMultiplier = multiplier
@@ -61,6 +69,11 @@ function ComboService:RegisterGateHit(player, object)
 	if tier and combo.Count == tier.Gates then
 		print(string.format("%s reached combo tier: %s (x%.1f)", player.Name, tier.Name, tier.Multiplier))
 		self:ShowComboNotification(player, tier)
+
+		-- Play combo sound
+		if self.SoundService then
+			self.SoundService:PlayComboSound(tier.Name)
+		end
 	end
 
 	return multiplier

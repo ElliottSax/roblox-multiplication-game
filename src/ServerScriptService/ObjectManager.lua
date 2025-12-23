@@ -8,6 +8,22 @@ local ObjectManager = {}
 ObjectManager.ActiveObjects = {}
 ObjectManager.ObjectCount = 0
 
+-- Get material from config or default
+local function getMaterial(materialName)
+	local materials = {
+		SmoothPlastic = Enum.Material.SmoothPlastic,
+		Metal = Enum.Material.Metal,
+		Neon = Enum.Material.Neon,
+		Glass = Enum.Material.Glass,
+		Marble = Enum.Material.Marble,
+		ForceField = Enum.Material.ForceField,
+		Diamond = Enum.Material.DiamondPlate,
+		Granite = Enum.Material.Granite,
+		Ice = Enum.Material.Ice,
+	}
+	return materials[materialName] or Enum.Material.SmoothPlastic
+end
+
 -- Create a template object based on config
 function ObjectManager:CreateObjectTemplate(objectType)
 	local objectConfig = Config.Objects[objectType]
@@ -20,11 +36,33 @@ function ObjectManager:CreateObjectTemplate(objectType)
 	object.Name = objectConfig.Name
 	object.Size = objectConfig.Size
 	object.Color = objectConfig.Color
-	object.Material = Enum.Material.SmoothPlastic
+	object.Material = getMaterial(objectConfig.Material)
 	object.TopSurface = Enum.SurfaceType.Smooth
 	object.BottomSurface = Enum.SurfaceType.Smooth
 	object.CanCollide = true
 	object.Anchored = false
+
+	-- Add special effects for high-value objects
+	if objectConfig.Value >= 50 then
+		-- Add glow effect
+		local highlight = Instance.new("Highlight")
+		highlight.FillColor = objectConfig.Color
+		highlight.OutlineColor = Color3.new(1, 1, 1)
+		highlight.FillTransparency = 0.7
+		highlight.Parent = object
+	end
+
+	-- Add particle effects for very high value objects
+	if objectConfig.Value >= 100 then
+		local particles = Instance.new("ParticleEmitter")
+		particles.Color = ColorSequence.new(objectConfig.Color)
+		particles.Size = NumberSequence.new(0.3)
+		particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		particles.Lifetime = NumberRange.new(0.5, 1)
+		particles.Rate = 10
+		particles.Speed = NumberRange.new(1, 2)
+		particles.Parent = object
+	end
 
 	-- Add custom properties
 	local valueTag = Instance.new("IntValue")
@@ -39,8 +77,8 @@ function ObjectManager:CreateObjectTemplate(objectType)
 
 	-- Add visual identifier
 	local billboardGui = Instance.new("BillboardGui")
-	billboardGui.Size = UDim2.new(0, 50, 0, 50)
-	billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+	billboardGui.Size = UDim2.new(0, 80, 0, 40)
+	billboardGui.StudsOffset = Vector3.new(0, objectConfig.Size.Y / 2 + 1.5, 0)
 	billboardGui.AlwaysOnTop = true
 	billboardGui.Parent = object
 
@@ -48,12 +86,79 @@ function ObjectManager:CreateObjectTemplate(objectType)
 	textLabel.Size = UDim2.new(1, 0, 1, 0)
 	textLabel.BackgroundTransparency = 1
 	textLabel.Text = objectConfig.Name
-	textLabel.TextColor3 = Color3.new(1, 1, 1)
+	textLabel.TextColor3 = objectConfig.Color
 	textLabel.TextScaled = true
 	textLabel.Font = Enum.Font.GothamBold
+	textLabel.TextStrokeTransparency = 0.5
+	textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 	textLabel.Parent = billboardGui
 
+	-- Show value on label for high value objects
+	if objectConfig.Value >= 25 then
+		local valueLabel = Instance.new("TextLabel")
+		valueLabel.Size = UDim2.new(1, 0, 0.4, 0)
+		valueLabel.Position = UDim2.new(0, 0, 0.7, 0)
+		valueLabel.BackgroundTransparency = 1
+		valueLabel.Text = "$" .. objectConfig.Value
+		valueLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+		valueLabel.TextScaled = true
+		valueLabel.Font = Enum.Font.GothamBold
+		valueLabel.Parent = billboardGui
+	end
+
 	return object
+end
+
+-- Get available object types based on player progress
+function ObjectManager:GetAvailableObjects(totalEarned)
+	local available = {}
+
+	for objectType, config in pairs(Config.Objects) do
+		local requirement = config.UnlockRequirement or 0
+		if totalEarned >= requirement then
+			table.insert(available, {
+				Type = objectType,
+				Config = config,
+				Weight = config.SpawnWeight or 10
+			})
+		end
+	end
+
+	return available
+end
+
+-- Pick a weighted random object type
+function ObjectManager:PickWeightedObjectType(availableObjects)
+	if #availableObjects == 0 then
+		return "Goblin" -- Fallback
+	end
+
+	-- Calculate total weight
+	local totalWeight = 0
+	for _, obj in ipairs(availableObjects) do
+		totalWeight = totalWeight + obj.Weight
+	end
+
+	-- Pick random
+	local roll = math.random() * totalWeight
+	local cumulative = 0
+
+	for _, obj in ipairs(availableObjects) do
+		cumulative = cumulative + obj.Weight
+		if roll <= cumulative then
+			return obj.Type
+		end
+	end
+
+	return availableObjects[1].Type
+end
+
+-- Spawn a random object based on player progress
+function ObjectManager:SpawnRandomObject(position, totalEarned)
+	totalEarned = totalEarned or 0
+	local available = self:GetAvailableObjects(totalEarned)
+	local objectType = self:PickWeightedObjectType(available)
+	return self:SpawnObject(objectType, position)
 end
 
 -- Spawn an object at a specific position

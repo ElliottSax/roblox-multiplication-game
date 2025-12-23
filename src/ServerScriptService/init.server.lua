@@ -14,6 +14,13 @@ local UpgradeService = require(script:WaitForChild("UpgradeService"))
 local DataService = require(script:WaitForChild("DataService"))
 local ComboService = require(script:WaitForChild("ComboService"))
 local AdminCommands = require(script:WaitForChild("AdminCommands"))
+local AchievementService = require(script:WaitForChild("AchievementService"))
+local SoundService = require(script:WaitForChild("SoundService"))
+local LeaderboardService = require(script:WaitForChild("LeaderboardService"))
+local BossWaveService = require(script:WaitForChild("BossWaveService"))
+local RebirthService = require(script:WaitForChild("RebirthService"))
+local QuestService = require(script:WaitForChild("QuestService"))
+local PetService = require(script:WaitForChild("PetService"))
 
 print("=== Multiplication Game Initializing ===")
 
@@ -41,6 +48,24 @@ local function CreateRemoteEvents()
 	local adminMessage = Instance.new("RemoteEvent")
 	adminMessage.Name = "AdminMessage"
 	adminMessage.Parent = ReplicatedStorage
+
+	-- Achievement remotes
+	local getAchievements = Instance.new("RemoteFunction")
+	getAchievements.Name = "GetAchievements"
+	getAchievements.Parent = ReplicatedStorage
+
+	local achievementUnlocked = Instance.new("RemoteEvent")
+	achievementUnlocked.Name = "AchievementUnlocked"
+	achievementUnlocked.Parent = ReplicatedStorage
+
+	-- Leaderboard remotes
+	local getLeaderboard = Instance.new("RemoteFunction")
+	getLeaderboard.Name = "GetLeaderboard"
+	getLeaderboard.Parent = ReplicatedStorage
+
+	local getLeaderboardInfo = Instance.new("RemoteFunction")
+	getLeaderboardInfo.Name = "GetLeaderboardInfo"
+	getLeaderboardInfo.Parent = ReplicatedStorage
 
 	-- Set up remote handlers with error handling
 	getUpgrades.OnServerInvoke = function(player)
@@ -70,6 +95,144 @@ local function CreateRemoteEvents()
 		end
 	end
 
+	getAchievements.OnServerInvoke = function(player)
+		local success, result = pcall(function()
+			return AchievementService:GetAllAchievements(player)
+		end)
+
+		if success then
+			return result
+		else
+			warn("GetAchievements error:", result)
+			return {}
+		end
+	end
+
+	getLeaderboard.OnServerInvoke = function(player, leaderboardId)
+		local success, result = pcall(function()
+			return LeaderboardService:GetLeaderboard(leaderboardId, 100)
+		end)
+
+		if success then
+			return result
+		else
+			warn("GetLeaderboard error:", result)
+			return {}
+		end
+	end
+
+	getLeaderboardInfo.OnServerInvoke = function(player)
+		local success, result = pcall(function()
+			return LeaderboardService:GetAllLeaderboardInfo()
+		end)
+
+		if success then
+			return result
+		else
+			warn("GetLeaderboardInfo error:", result)
+			return {}
+		end
+	end
+
+	-- Rebirth remotes
+	local getRebirthInfo = Instance.new("RemoteFunction")
+	getRebirthInfo.Name = "GetRebirthInfo"
+	getRebirthInfo.Parent = ReplicatedStorage
+
+	local performRebirth = Instance.new("RemoteFunction")
+	performRebirth.Name = "PerformRebirth"
+	performRebirth.Parent = ReplicatedStorage
+
+	getRebirthInfo.OnServerInvoke = function(player)
+		local success, result = pcall(function()
+			return RebirthService:GetRebirthInfo(player)
+		end)
+
+		if success then
+			return result
+		else
+			warn("GetRebirthInfo error:", result)
+			return {}
+		end
+	end
+
+	performRebirth.OnServerInvoke = function(player)
+		local success, tierConfig = RebirthService:Rebirth(player)
+		return {Success = success, TierConfig = tierConfig, Message = not success and tierConfig or nil}
+	end
+
+	-- Quest remotes
+	local getQuests = Instance.new("RemoteFunction")
+	getQuests.Name = "GetQuests"
+	getQuests.Parent = ReplicatedStorage
+
+	local claimQuest = Instance.new("RemoteFunction")
+	claimQuest.Name = "ClaimQuest"
+	claimQuest.Parent = ReplicatedStorage
+
+	getQuests.OnServerInvoke = function(player)
+		local success, result = pcall(function()
+			return QuestService:GetQuests(player)
+		end)
+
+		if success then
+			return result
+		else
+			warn("GetQuests error:", result)
+			return {}
+		end
+	end
+
+	claimQuest.OnServerInvoke = function(player, questId)
+		local success, reward = QuestService:ClaimReward(player, questId)
+		return {Success = success, Reward = reward, Message = not success and reward or nil}
+	end
+
+	-- Pet remotes
+	local getPetData = Instance.new("RemoteFunction")
+	getPetData.Name = "GetPetData"
+	getPetData.Parent = ReplicatedStorage
+
+	local hatchEgg = Instance.new("RemoteFunction")
+	hatchEgg.Name = "HatchEgg"
+	hatchEgg.Parent = ReplicatedStorage
+
+	local equipPet = Instance.new("RemoteFunction")
+	equipPet.Name = "EquipPet"
+	equipPet.Parent = ReplicatedStorage
+
+	local unequipPet = Instance.new("RemoteFunction")
+	unequipPet.Name = "UnequipPet"
+	unequipPet.Parent = ReplicatedStorage
+
+	getPetData.OnServerInvoke = function(player)
+		local success, result = pcall(function()
+			return PetService:GetPetData(player)
+		end)
+
+		if success then
+			return result
+		else
+			warn("GetPetData error:", result)
+			return {}
+		end
+	end
+
+	hatchEgg.OnServerInvoke = function(player, eggId)
+		local success, petOrMessage = PetService:HatchEgg(player, eggId)
+		return {Success = success, Pet = success and petOrMessage or nil, Message = not success and petOrMessage or nil}
+	end
+
+	equipPet.OnServerInvoke = function(player, petId)
+		local success, result = PetService:EquipPet(player, petId)
+		return {Success = success, Pet = result}
+	end
+
+	unequipPet.OnServerInvoke = function(player, petId)
+		local success = PetService:UnequipPet(player, petId)
+		return {Success = success}
+	end
+
 	print("Remote events created")
 end
 
@@ -84,8 +247,40 @@ local GameState = {
 local function InitializeGame()
 	print("Creating game path...")
 
-	-- Connect MultiplierService with ComboService
+	-- Initialize sound service
+	SoundService:Initialize()
+
+	-- Initialize leaderboard service
+	LeaderboardService:Initialize()
+
+	-- Connect services together
 	MultiplierService.ComboService = ComboService
+	MultiplierService.AchievementService = AchievementService
+	MultiplierService.SoundService = SoundService
+	MultiplierService.QuestService = QuestService
+	MultiplierService.RebirthService = RebirthService
+	MultiplierService.PetService = PetService
+	CurrencyService.AchievementService = AchievementService
+	CurrencyService.SoundService = SoundService
+	CurrencyService.QuestService = QuestService
+	CurrencyService.RebirthService = RebirthService
+	CurrencyService.PetService = PetService
+	ComboService.AchievementService = AchievementService
+	ComboService.SoundService = SoundService
+	ComboService.QuestService = QuestService
+	UpgradeService.AchievementService = AchievementService
+	UpgradeService.SoundService = SoundService
+	AchievementService.SoundService = SoundService
+	RebirthService.CurrencyService = CurrencyService
+	RebirthService.AchievementService = AchievementService
+	RebirthService.SoundService = SoundService
+	QuestService.CurrencyService = CurrencyService
+	QuestService.AchievementService = AchievementService
+	QuestService.SoundService = SoundService
+	QuestService.RebirthService = RebirthService
+	PetService.CurrencyService = CurrencyService
+	PetService.AchievementService = AchievementService
+	PetService.SoundService = SoundService
 
 	-- Create the main path
 	local path, spawnPlatform = PathManager:CreatePath(GameState.SpawnPosition)
@@ -102,6 +297,15 @@ local function InitializeGame()
 	PathManager:EnableObjectPushing()
 
 	GameState.IsRunning = true
+
+	-- Start background music
+	SoundService:StartBackgroundMusic()
+
+	-- Initialize and start boss wave system
+	BossWaveService:Initialize(GameState.SpawnPosition, ObjectManager)
+	BossWaveService.SoundService = SoundService
+	BossWaveService:Start()
+
 	print("Game initialization complete!")
 end
 
@@ -149,6 +353,10 @@ Players.PlayerAdded:Connect(function(player)
 	CurrencyService:InitializePlayer(player)
 	UpgradeService:InitializePlayer(player)
 	ComboService:InitializePlayer(player)
+	AchievementService:InitializePlayer(player)
+	RebirthService:InitializePlayer(player)
+	QuestService:InitializePlayer(player)
+	PetService:InitializePlayer(player)
 
 	-- Restore saved data
 	if playerData then
@@ -161,6 +369,26 @@ Players.PlayerAdded:Connect(function(player)
 			UpgradeService.PlayerUpgrades[player.UserId] = playerData.Upgrades
 		end
 
+		-- Restore achievements
+		if playerData.Achievements then
+			AchievementService:LoadAchievements(player, playerData)
+		end
+
+		-- Restore rebirth data
+		if playerData.Rebirth then
+			RebirthService:LoadData(player, playerData.Rebirth)
+		end
+
+		-- Restore quest data
+		if playerData.Quests then
+			QuestService:LoadData(player, playerData.Quests)
+		end
+
+		-- Restore pet data
+		if playerData.Pets then
+			PetService:LoadData(player, playerData.Pets)
+		end
+
 		-- Update leaderstats with loaded data
 		local leaderstats = player:FindFirstChild("leaderstats")
 		if leaderstats then
@@ -169,6 +397,10 @@ Players.PlayerAdded:Connect(function(player)
 			if currency then currency.Value = playerData.Currency end
 			if collected then collected.Value = playerData.ObjectsCollected end
 		end
+
+		-- Sync achievement stats with currency data
+		AchievementService:UpdateStat(player, "ObjectsCollected", playerData.ObjectsCollected or 0, true)
+		AchievementService:UpdateStat(player, "TotalEarned", playerData.TotalValue or 0, true)
 	end
 
 	-- Teleport player to spawn when character loads
@@ -199,6 +431,42 @@ Players.PlayerRemoving:Connect(function(player)
 		if upgrades then
 			sessionData.Upgrades = upgrades
 		end
+
+		-- Save achievements
+		local achievementData = AchievementService:GetSaveData(player)
+		if achievementData then
+			sessionData.Achievements = achievementData
+		end
+
+		-- Save rebirth data
+		local rebirthData = RebirthService:GetSaveData(player)
+		if rebirthData then
+			sessionData.Rebirth = rebirthData
+		end
+
+		-- Save quest data
+		local questData = QuestService:GetSaveData(player)
+		if questData then
+			sessionData.Quests = questData
+		end
+
+		-- Save pet data
+		local petData = PetService:GetSaveData(player)
+		if petData then
+			sessionData.Pets = petData
+		end
+	end
+
+	-- Update leaderboards before saving
+	local currencyData = CurrencyService.PlayerData[player.UserId]
+	local comboData = ComboService.PlayerCombos[player.UserId]
+	if currencyData then
+		LeaderboardService:UpdateAllLeaderboards(player, {
+			TotalEarned = currencyData.TotalValue or 0,
+			ObjectsCollected = currencyData.ObjectsCollected or 0,
+			Currency = currencyData.Currency or 0,
+			MaxCombo = comboData and comboData.HighestCombo or 0
+		})
 	end
 
 	-- Save to DataStore
@@ -208,6 +476,10 @@ Players.PlayerRemoving:Connect(function(player)
 	CurrencyService:CleanupPlayer(player)
 	UpgradeService:CleanupPlayer(player)
 	ComboService:CleanupPlayer(player)
+	AchievementService:CleanupPlayer(player)
+	RebirthService:CleanupPlayer(player)
+	QuestService:CleanupPlayer(player)
+	PetService:CleanupPlayer(player)
 end)
 
 -- Main game loop

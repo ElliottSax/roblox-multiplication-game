@@ -3,10 +3,13 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
 local CurrencyService = {}
 CurrencyService.PlayerData = {}
+CurrencyService.AchievementService = nil -- Set by init.server.lua
+CurrencyService.SoundService = nil -- Set by init.server.lua
 
 -- Initialize player data when they join
 function CurrencyService:InitializePlayer(player)
@@ -100,8 +103,17 @@ function CurrencyService:CollectObject(player, object)
 		end
 	end
 
-	-- Visual feedback
+	-- Update achievement stats
+	if self.AchievementService then
+		self.AchievementService:UpdateStat(player, "ObjectsCollected", 1, false)
+		self.AchievementService:UpdateStat(player, "TotalEarned", currencyGained, false)
+	end
+
+	-- Visual and audio feedback
 	self:PlayCollectionEffect(object)
+	if self.SoundService then
+		self.SoundService:PlayCollectionSound(object.Position, currencyGained >= 5)
+	end
 
 	-- Remove the object
 	object:Destroy()

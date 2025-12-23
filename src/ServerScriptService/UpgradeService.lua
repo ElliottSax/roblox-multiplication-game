@@ -8,6 +8,8 @@ local CurrencyService = require(script.Parent:WaitForChild("CurrencyService"))
 
 local UpgradeService = {}
 UpgradeService.PlayerUpgrades = {}
+UpgradeService.AchievementService = nil -- Set by init.server.lua
+UpgradeService.SoundService = nil -- Set by init.server.lua
 
 -- Available upgrades
 UpgradeService.Upgrades = {
@@ -170,11 +172,27 @@ function UpgradeService:PurchaseUpgrade(player, upgradeName)
 	end
 
 	-- Apply upgrade
-	self.PlayerUpgrades[player.UserId][upgradeName] = currentLevel + 1
+	local newLevel = currentLevel + 1
+	self.PlayerUpgrades[player.UserId][upgradeName] = newLevel
 
-	print(string.format("%s purchased %s (Level %d)", player.Name, upgrade.Name, currentLevel + 1))
+	-- Update achievement stats
+	if self.AchievementService then
+		self.AchievementService:UpdateStat(player, "UpgradesPurchased", 1, false)
 
-	return true, string.format("Purchased %s Level %d!", upgrade.Name, currentLevel + 1)
+		-- Check if maxed out an upgrade
+		if newLevel >= upgrade.MaxLevel then
+			self.AchievementService:UpdateStat(player, "MaxUpgrade", 1, false)
+		end
+	end
+
+	-- Play purchase sound
+	if self.SoundService then
+		self.SoundService:PlaySound("PurchaseSuccess")
+	end
+
+	print(string.format("%s purchased %s (Level %d)", player.Name, upgrade.Name, newLevel))
+
+	return true, string.format("Purchased %s Level %d!", upgrade.Name, newLevel)
 end
 
 -- Get upgrade effect multiplier for a player

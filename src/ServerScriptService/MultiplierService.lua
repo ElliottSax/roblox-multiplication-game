@@ -10,6 +10,8 @@ local MultiplierService = {}
 MultiplierService.Gates = {}
 MultiplierService.ProcessedObjects = {} -- Track objects to prevent double-processing
 MultiplierService.ComboService = nil -- Will be set by init script
+MultiplierService.AchievementService = nil -- Will be set by init script
+MultiplierService.SoundService = nil -- Will be set by init script
 
 -- Create a multiplier gate in the world
 function MultiplierService:CreateGate(gateConfig, position)
@@ -114,15 +116,32 @@ function MultiplierService:OnObjectTouched(gate, hit, gateConfig)
 
 	-- Apply the multiplier effect (with combo bonus)
 	local effectiveValue = math.floor(gateConfig.Value * comboMultiplier)
+	local totalObjectsCreated = 0
 
 	if gateConfig.Type == "Multiply" then
-		self:MultiplyObject(hit, effectiveValue)
+		totalObjectsCreated = self:MultiplyObject(hit, effectiveValue)
 	elseif gateConfig.Type == "Add" then
-		self:AddObjects(hit, effectiveValue)
+		totalObjectsCreated = self:AddObjects(hit, effectiveValue)
+	elseif gateConfig.Type == "Subtract" then
+		totalObjectsCreated = self:SubtractObjects(hit, gateConfig.Value, gateConfig.ValueMultiplier or 1)
+	elseif gateConfig.Type == "Divide" then
+		totalObjectsCreated = self:DivideObjects(hit, effectiveValue, gateConfig.ValueMultiplier or 1)
+	elseif gateConfig.Type == "Random" then
+		totalObjectsCreated = self:RandomEffect(hit, comboMultiplier)
+	elseif gateConfig.Type == "Power" then
+		totalObjectsCreated = self:PowerObject(hit, effectiveValue)
 	end
 
-	-- Visual feedback
+	-- Track single multiply achievement stat
+	if totalObjectsCreated > 0 and nearestPlayer and self.AchievementService then
+		self.AchievementService:UpdateStat(nearestPlayer, "SingleMultiply", totalObjectsCreated, true)
+	end
+
+	-- Visual and audio feedback
 	self:PlayGateEffect(gate)
+	if self.SoundService then
+		self.SoundService:PlayGateSound(gateConfig.Type, gate.Position)
+	end
 
 	-- Clean up processed objects tracking after some time
 	task.delay(5, function()
@@ -152,12 +171,13 @@ function MultiplierService:MultiplyObject(object, multiplier)
 	end
 
 	print(string.format("Multiplied %s by %d (created %d clones)", object.Name, multiplier, #clones))
+	return #clones
 end
 
 -- Add new objects at the gate position
 function MultiplierService:AddObjects(referenceObject, count)
 	local objectType = referenceObject:FindFirstChild("ObjectType")
-	if not objectType then return end
+	if not objectType then return 0 end
 
 	local position = referenceObject.Position
 	local newObjects = ObjectManager:AddObjects(objectType.Value, position, count)
@@ -179,6 +199,203 @@ function MultiplierService:AddObjects(referenceObject, count)
 	end
 
 	print(string.format("Added %d new %s objects", count, referenceObject.Name))
+	return #newObjects
+end
+
+-- Subtract objects (remove percentage but increase remaining value)
+function MultiplierService:SubtractObjects(referenceObject, percentage, valueMultiplier)
+	-- Find all nearby objects of same type
+	local objectType = referenceObject:FindFirstChild("ObjectType")
+	if not objectType then return 0 end
+
+	-- Get all game objects
+	local objectsToRemove = {}
+	local objectsToKeep = {}
+
+	for _, obj in pairs(workspace:GetChildren()) do
+		if obj:FindFirstChild("ObjectType") and obj:FindFirstChild("ObjectType").Value == objectType.Value then
+			local distance = (obj.Position - referenceObject.Position).Magnitude
+			if distance < 20 then -- Within 20 studs
+				table.insert(objectsToRemove, obj)
+			end
+		end
+	end
+
+	-- Calculate how many to remove
+	local removeCount = math.floor(#objectsToRemove * (percentage / 100))
+	local keepCount = #objectsToRemove - removeCount
+
+	-- Shuffle and remove
+	for i = #objectsToRemove, 2, -1 do
+		local j = math.random(i)
+		objectsToRemove[i], objectsToRemove[j] = objectsToRemove[j], objectsToRemove[i]
+	end
+
+	for i = 1, removeCount do
+		if objectsToRemove[i] and objectsToRemove[i].Parent then
+			objectsToRemove[i]:Destroy()
+		end
+	end
+
+	-- Increase value of remaining objects
+	for i = removeCount + 1, #objectsToRemove do
+		local obj = objectsToRemove[i]
+		if obj and obj.Parent then
+			local objValue = obj:FindFirstChild("ObjectValue")
+			if objValue then
+				objValue.Value = math.floor(objValue.Value * valueMultiplier)
+			end
+		end
+	end
+
+	print(string.format("Subtracted %d objects (-%d%%), remaining value x%.1f", removeCount, percentage, valueMultiplier))
+	return keepCount
+end
+
+-- Divide objects (reduce count but multiply value)
+function MultiplierService:DivideObjects(referenceObject, divisor, valueMultiplier)
+	local objectType = referenceObject:FindFirstChild("ObjectType")
+	if not objectType then return 0 end
+
+	-- Find nearby objects
+	local nearbyObjects = {}
+	for _, obj in pairs(workspace:GetChildren()) do
+		if obj:FindFirstChild("ObjectType") and obj:FindFirstChild("ObjectType").Value == objectType.Value then
+			local distance = (obj.Position - referenceObject.Position).Magnitude
+			if distance < 20 then
+				table.insert(nearbyObjects, obj)
+			end
+		end
+	end
+
+	-- Keep only 1/divisor of objects
+	local keepCount = math.max(1, math.floor(#nearbyObjects / divisor))
+	local removeCount = #nearbyObjects - keepCount
+
+	-- Shuffle
+	for i = #nearbyObjects, 2, -1 do
+		local j = math.random(i)
+		nearbyObjects[i], nearbyObjects[j] = nearbyObjects[j], nearbyObjects[i]
+	end
+
+	-- Remove excess and boost value of kept objects
+	for i = 1, removeCount do
+		if nearbyObjects[i] and nearbyObjects[i].Parent then
+			nearbyObjects[i]:Destroy()
+		end
+	end
+
+	for i = removeCount + 1, #nearbyObjects do
+		local obj = nearbyObjects[i]
+		if obj and obj.Parent then
+			local objValue = obj:FindFirstChild("ObjectValue")
+			if objValue then
+				objValue.Value = math.floor(objValue.Value * valueMultiplier)
+			end
+		end
+	end
+
+	print(string.format("Divided by %d (kept %d, value x%.1f)", divisor, keepCount, valueMultiplier))
+	return keepCount
+end
+
+-- Random effect gate
+function MultiplierService:RandomEffect(referenceObject, comboMultiplier)
+	local effects = {
+		{Type = "Multiply", Value = math.random(2, 10), Chance = 30},
+		{Type = "Add", Value = math.random(5, 25), Chance = 30},
+		{Type = "Jackpot", Value = math.random(10, 50), Chance = 10}, -- Massive multiply!
+		{Type = "Nothing", Value = 0, Chance = 15},
+		{Type = "ValueBoost", Value = math.random(2, 5), Chance = 15},
+	}
+
+	-- Pick random effect based on weights
+	local totalWeight = 0
+	for _, effect in ipairs(effects) do
+		totalWeight = totalWeight + effect.Chance
+	end
+
+	local roll = math.random(1, totalWeight)
+	local cumulative = 0
+	local selectedEffect = effects[1]
+
+	for _, effect in ipairs(effects) do
+		cumulative = cumulative + effect.Chance
+		if roll <= cumulative then
+			selectedEffect = effect
+			break
+		end
+	end
+
+	-- Apply the effect
+	local effectiveValue = math.floor(selectedEffect.Value * comboMultiplier)
+
+	if selectedEffect.Type == "Multiply" then
+		print(string.format("Random: Lucky x%d multiply!", effectiveValue))
+		return self:MultiplyObject(referenceObject, effectiveValue)
+	elseif selectedEffect.Type == "Add" then
+		print(string.format("Random: +%d objects!", effectiveValue))
+		return self:AddObjects(referenceObject, effectiveValue)
+	elseif selectedEffect.Type == "Jackpot" then
+		print(string.format("Random: JACKPOT! x%d multiply!", effectiveValue))
+		return self:MultiplyObject(referenceObject, effectiveValue)
+	elseif selectedEffect.Type == "ValueBoost" then
+		-- Boost value of this object
+		local objValue = referenceObject:FindFirstChild("ObjectValue")
+		if objValue then
+			objValue.Value = objValue.Value * effectiveValue
+			print(string.format("Random: Value boost x%d!", effectiveValue))
+		end
+		return 1
+	else
+		print("Random: Nothing happened...")
+		return 0
+	end
+end
+
+-- Power effect (square the count)
+function MultiplierService:PowerObject(object, power)
+	-- Count nearby objects
+	local objectType = object:FindFirstChild("ObjectType")
+	if not objectType then return 0 end
+
+	local nearbyCount = 0
+	for _, obj in pairs(workspace:GetChildren()) do
+		if obj:FindFirstChild("ObjectType") and obj:FindFirstChild("ObjectType").Value == objectType.Value then
+			local distance = (obj.Position - object.Position).Magnitude
+			if distance < 25 then
+				nearbyCount = nearbyCount + 1
+			end
+		end
+	end
+
+	-- Square it (capped at 100 to prevent lag)
+	local targetCount = math.min(nearbyCount ^ power, 100)
+	local toCreate = math.max(0, targetCount - nearbyCount)
+
+	if toCreate > 0 then
+		local clones = ObjectManager:CloneObject(object, toCreate)
+
+		for _, clone in ipairs(clones) do
+			if clone:IsA("BasePart") then
+				local bodyVelocity = Instance.new("BodyVelocity")
+				bodyVelocity.Velocity = Vector3.new(0, 0, -Config.Physics.PathSpeed)
+				bodyVelocity.MaxForce = Vector3.new(0, 0, 50000)
+				bodyVelocity.Parent = clone
+
+				task.delay(2, function()
+					if bodyVelocity and bodyVelocity.Parent then
+						bodyVelocity:Destroy()
+					end
+				end)
+			end
+		end
+
+		print(string.format("Power gate: %d^%d = %d (created %d)", nearbyCount, power, targetCount, toCreate))
+		return toCreate
+	end
+
+	return 0
 end
 
 -- Visual effect when gate is activated
@@ -199,13 +416,36 @@ function MultiplierService:PlayGateEffect(gate)
 	end
 end
 
+-- Pick a weighted random gate configuration
+function MultiplierService:PickWeightedGate()
+	-- Calculate total weight
+	local totalWeight = 0
+	for _, config in ipairs(Config.Multipliers) do
+		totalWeight = totalWeight + (config.Weight or 10)
+	end
+
+	-- Pick random based on weight
+	local roll = math.random(1, totalWeight)
+	local cumulative = 0
+
+	for _, config in ipairs(Config.Multipliers) do
+		cumulative = cumulative + (config.Weight or 10)
+		if roll <= cumulative then
+			return config
+		end
+	end
+
+	-- Fallback to first
+	return Config.Multipliers[1]
+end
+
 -- Generate gates along a path
 function MultiplierService:GenerateGatesOnPath(startPosition, pathLength)
 	local gateCount = math.floor(pathLength / Config.Path.GateSpacing)
 
 	for i = 1, gateCount do
-		-- Pick a random multiplier configuration
-		local gateConfig = Config.Multipliers[math.random(1, #Config.Multipliers)]
+		-- Pick a weighted random multiplier configuration
+		local gateConfig = self:PickWeightedGate()
 
 		-- Calculate gate position along the path
 		local zPosition = startPosition.Z - (i * Config.Path.GateSpacing)
