@@ -10,6 +10,9 @@ local CurrencyService = {}
 CurrencyService.PlayerData = {}
 CurrencyService.AchievementService = nil -- Set by init.server.lua
 CurrencyService.SoundService = nil -- Set by init.server.lua
+CurrencyService.QuestService = nil -- Set by init.server.lua
+CurrencyService.RebirthService = nil -- Set by init.server.lua
+CurrencyService.PetService = nil -- Set by init.server.lua
 
 -- Initialize player data when they join
 function CurrencyService:InitializePlayer(player)
@@ -87,8 +90,23 @@ function CurrencyService:CollectObject(player, object)
 	local data = self.PlayerData[player.UserId]
 	if not data then return end
 
-	-- Calculate currency with bonus
-	local currencyGained = math.floor(objectValue.Value * Config.Currency.CollectionBonus)
+	-- Calculate base currency
+	local baseCurrency = objectValue.Value * Config.Currency.CollectionBonus
+
+	-- Apply rebirth multiplier
+	local rebirthMultiplier = 1.0
+	if self.RebirthService then
+		rebirthMultiplier = self.RebirthService:GetMultiplier(player)
+	end
+
+	-- Apply pet bonuses
+	local petMultiplier = 1.0
+	if self.PetService then
+		petMultiplier = self.PetService:GetTotalBonus(player, "CurrencyMultiplier")
+	end
+
+	-- Calculate final currency
+	local currencyGained = math.floor(baseCurrency * rebirthMultiplier * petMultiplier)
 
 	-- Update stats
 	data.ObjectsCollected += 1
@@ -107,6 +125,14 @@ function CurrencyService:CollectObject(player, object)
 	if self.AchievementService then
 		self.AchievementService:UpdateStat(player, "ObjectsCollected", 1, false)
 		self.AchievementService:UpdateStat(player, "TotalEarned", currencyGained, false)
+	end
+
+	-- Track quest progress
+	if self.QuestService then
+		local objectType = object:FindFirstChild("ObjectType")
+		local typeName = objectType and objectType.Value or "Unknown"
+		self.QuestService:TrackObjectCollected(player, typeName)
+		self.QuestService:TrackCurrencyEarned(player, currencyGained)
 	end
 
 	-- Visual and audio feedback
@@ -169,6 +195,11 @@ function CurrencyService:SpendCurrency(player, amount)
 	end
 
 	return false
+end
+
+-- Alias for SpendCurrency (used by PetService)
+function CurrencyService:RemoveCurrency(player, amount)
+	return self:SpendCurrency(player, amount)
 end
 
 -- Clean up player data when they leave

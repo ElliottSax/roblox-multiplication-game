@@ -9,6 +9,7 @@ ComboService.PlayerCombos = {}
 ComboService.ComboTimeout = 3 -- Seconds before combo resets
 ComboService.AchievementService = nil -- Set by init.server.lua
 ComboService.SoundService = nil -- Set by init.server.lua
+ComboService.QuestService = nil -- Set by init.server.lua
 
 -- Combo tier thresholds and multipliers
 ComboService.ComboTiers = {
@@ -58,6 +59,11 @@ function ComboService:RegisterGateHit(player, object)
 	if self.AchievementService then
 		self.AchievementService:UpdateStat(player, "MaxCombo", combo.Count, true)
 		self.AchievementService:UpdateStat(player, "GatesPassed", 1, false)
+	end
+
+	-- Track quest progress
+	if self.QuestService then
+		self.QuestService:TrackCombo(player, combo.Count, nil)
 	end
 
 	-- Calculate multiplier

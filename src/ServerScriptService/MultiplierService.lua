@@ -12,6 +12,9 @@ MultiplierService.ProcessedObjects = {} -- Track objects to prevent double-proce
 MultiplierService.ComboService = nil -- Will be set by init script
 MultiplierService.AchievementService = nil -- Will be set by init script
 MultiplierService.SoundService = nil -- Will be set by init script
+MultiplierService.QuestService = nil -- Will be set by init script
+MultiplierService.RebirthService = nil -- Will be set by init script
+MultiplierService.PetService = nil -- Will be set by init script
 
 -- Create a multiplier gate in the world
 function MultiplierService:CreateGate(gateConfig, position)
@@ -135,6 +138,11 @@ function MultiplierService:OnObjectTouched(gate, hit, gateConfig)
 	-- Track single multiply achievement stat
 	if totalObjectsCreated > 0 and nearestPlayer and self.AchievementService then
 		self.AchievementService:UpdateStat(nearestPlayer, "SingleMultiply", totalObjectsCreated, true)
+	end
+
+	-- Track quest progress for gate passes
+	if nearestPlayer and self.QuestService then
+		self.QuestService:TrackGatePassed(nearestPlayer, gateConfig.Type)
 	end
 
 	-- Visual and audio feedback
