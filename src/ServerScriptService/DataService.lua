@@ -91,15 +91,48 @@ function DataService:SaveData(player)
 	-- Update last played time
 	data.Stats.LastPlayed = os.time()
 
-	-- Try to save data with retry logic
+	-- Try to save data with retry logic using UpdateAsync for safer concurrent writes
 	local success, error
 	for attempt = 1, 3 do
 		success, error = pcall(function()
-			self.PlayerDataStore:SetAsync("Player_" .. userId, data)
+			-- Use UpdateAsync instead of SetAsync to prevent data loss in concurrent scenarios
+			self.PlayerDataStore:UpdateAsync("Player_" .. userId, function(oldData)
+				-- If there's existing data from another server, merge carefully
+				if oldData and type(oldData) == "table" then
+					-- Merge stats to keep higher values for cumulative stats
+					if oldData.Stats and data.Stats then
+						-- Keep higher playtime
+						data.Stats.PlayTime = math.max(
+							oldData.Stats.PlayTime or 0,
+							data.Stats.PlayTime or 0
+						)
+						-- Keep higher total objects spawned
+						data.Stats.TotalObjectsSpawned = math.max(
+							oldData.Stats.TotalObjectsSpawned or 0,
+							data.Stats.TotalObjectsSpawned or 0
+						)
+						-- Keep higher multiplier achieved
+						data.Stats.HighestMultiplier = math.max(
+							oldData.Stats.HighestMultiplier or 0,
+							data.Stats.HighestMultiplier or 0
+						)
+					end
+
+					-- Preserve any additional fields that might have been added
+					for key, value in pairs(oldData) do
+						if data[key] == nil and key ~= "Stats" then
+							data[key] = value
+						end
+					end
+				end
+
+				-- Return the merged data to save
+				return data
+			end)
 		end)
 
 		if success then
-			print(string.format("Saved data for %s", player.Name))
+			print(string.format("Saved data for %s (UpdateAsync)", player.Name))
 			return true
 		end
 

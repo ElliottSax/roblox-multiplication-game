@@ -24,6 +24,57 @@ local PetService = require(script:WaitForChild("PetService"))
 
 print("=== Multiplication Game Initializing ===")
 
+-- ==================== RATE LIMITING SYSTEM ====================
+-- Prevents exploit attempts by limiting remote event calls per player
+
+local RateLimiter = {}
+local RATE_LIMIT = 10 -- Maximum requests per second per player
+
+-- Check if player is within rate limit for a specific remote
+local function CheckRateLimit(player, remoteName)
+	local key = player.UserId .. "_" .. remoteName
+	local now = tick()
+
+	-- Initialize rate limit data for this player+remote
+	if not RateLimiter[key] then
+		RateLimiter[key] = {count = 1, resetTime = now + 1}
+		return true
+	end
+
+	-- Reset counter if time window has passed
+	if now >= RateLimiter[key].resetTime then
+		RateLimiter[key] = {count = 1, resetTime = now + 1}
+		return true
+	end
+
+	-- Increment counter
+	RateLimiter[key].count = RateLimiter[key].count + 1
+
+	-- Check if over limit
+	if RateLimiter[key].count > RATE_LIMIT then
+		warn(string.format("[Security] %s rate limited on %s (%d requests/sec)",
+			player.Name, remoteName, RateLimiter[key].count))
+		return false
+	end
+
+	return true
+end
+
+-- Cleanup old rate limit entries periodically
+task.spawn(function()
+	while true do
+		wait(60) -- Clean every minute
+		local now = tick()
+		for key, data in pairs(RateLimiter) do
+			if now > data.resetTime + 10 then
+				RateLimiter[key] = nil
+			end
+		end
+	end
+end)
+
+-- ==================== REMOTE EVENTS ====================
+
 -- Create remote events for client-server communication
 local function CreateRemoteEvents()
 	-- Shop remotes
@@ -67,8 +118,13 @@ local function CreateRemoteEvents()
 	getLeaderboardInfo.Name = "GetLeaderboardInfo"
 	getLeaderboardInfo.Parent = ReplicatedStorage
 
-	-- Set up remote handlers with error handling
+	-- Set up remote handlers with error handling and rate limiting
 	getUpgrades.OnServerInvoke = function(player)
+		-- Rate limit check
+		if not CheckRateLimit(player, "GetUpgrades") then
+			return {}
+		end
+
 		local success, result = pcall(function()
 			return UpgradeService:GetAllUpgrades(player)
 		end)
@@ -82,6 +138,11 @@ local function CreateRemoteEvents()
 	end
 
 	purchaseUpgrade.OnServerInvoke = function(player, upgradeName)
+		-- Rate limit check
+		if not CheckRateLimit(player, "PurchaseUpgrade") then
+			return {Success = false, Message = "Too many requests. Please slow down."}
+		end
+
 		local success, result = pcall(function()
 			local purchaseSuccess, message = UpgradeService:PurchaseUpgrade(player, upgradeName)
 			return {Success = purchaseSuccess, Message = message}
@@ -96,6 +157,11 @@ local function CreateRemoteEvents()
 	end
 
 	getAchievements.OnServerInvoke = function(player)
+		-- Rate limit check
+		if not CheckRateLimit(player, "GetAchievements") then
+			return {}
+		end
+
 		local success, result = pcall(function()
 			return AchievementService:GetAllAchievements(player)
 		end)
@@ -109,6 +175,11 @@ local function CreateRemoteEvents()
 	end
 
 	getLeaderboard.OnServerInvoke = function(player, leaderboardId)
+		-- Rate limit check
+		if not CheckRateLimit(player, "GetLeaderboard") then
+			return {}
+		end
+
 		local success, result = pcall(function()
 			return LeaderboardService:GetLeaderboard(leaderboardId, 100)
 		end)
@@ -122,6 +193,11 @@ local function CreateRemoteEvents()
 	end
 
 	getLeaderboardInfo.OnServerInvoke = function(player)
+		-- Rate limit check
+		if not CheckRateLimit(player, "GetLeaderboardInfo") then
+			return {}
+		end
+
 		local success, result = pcall(function()
 			return LeaderboardService:GetAllLeaderboardInfo()
 		end)
@@ -144,6 +220,11 @@ local function CreateRemoteEvents()
 	performRebirth.Parent = ReplicatedStorage
 
 	getRebirthInfo.OnServerInvoke = function(player)
+		-- Rate limit check
+		if not CheckRateLimit(player, "GetRebirthInfo") then
+			return {}
+		end
+
 		local success, result = pcall(function()
 			return RebirthService:GetRebirthInfo(player)
 		end)
@@ -157,6 +238,11 @@ local function CreateRemoteEvents()
 	end
 
 	performRebirth.OnServerInvoke = function(player)
+		-- Rate limit check
+		if not CheckRateLimit(player, "PerformRebirth") then
+			return {Success = false, Message = "Too many requests. Please slow down."}
+		end
+
 		local success, tierConfig = RebirthService:Rebirth(player)
 		return {Success = success, TierConfig = tierConfig, Message = not success and tierConfig or nil}
 	end
@@ -171,6 +257,11 @@ local function CreateRemoteEvents()
 	claimQuest.Parent = ReplicatedStorage
 
 	getQuests.OnServerInvoke = function(player)
+		-- Rate limit check
+		if not CheckRateLimit(player, "GetQuests") then
+			return {}
+		end
+
 		local success, result = pcall(function()
 			return QuestService:GetQuests(player)
 		end)
@@ -184,6 +275,11 @@ local function CreateRemoteEvents()
 	end
 
 	claimQuest.OnServerInvoke = function(player, questId)
+		-- Rate limit check
+		if not CheckRateLimit(player, "ClaimQuest") then
+			return {Success = false, Message = "Too many requests. Please slow down."}
+		end
+
 		local success, reward = QuestService:ClaimReward(player, questId)
 		return {Success = success, Reward = reward, Message = not success and reward or nil}
 	end
@@ -206,6 +302,11 @@ local function CreateRemoteEvents()
 	unequipPet.Parent = ReplicatedStorage
 
 	getPetData.OnServerInvoke = function(player)
+		-- Rate limit check
+		if not CheckRateLimit(player, "GetPetData") then
+			return {}
+		end
+
 		local success, result = pcall(function()
 			return PetService:GetPetData(player)
 		end)
@@ -219,16 +320,31 @@ local function CreateRemoteEvents()
 	end
 
 	hatchEgg.OnServerInvoke = function(player, eggId)
+		-- Rate limit check
+		if not CheckRateLimit(player, "HatchEgg") then
+			return {Success = false, Message = "Too many requests. Please slow down."}
+		end
+
 		local success, petOrMessage = PetService:HatchEgg(player, eggId)
 		return {Success = success, Pet = success and petOrMessage or nil, Message = not success and petOrMessage or nil}
 	end
 
 	equipPet.OnServerInvoke = function(player, petId)
+		-- Rate limit check
+		if not CheckRateLimit(player, "EquipPet") then
+			return {Success = false, Message = "Too many requests. Please slow down."}
+		end
+
 		local success, result = PetService:EquipPet(player, petId)
 		return {Success = success, Pet = result}
 	end
 
 	unequipPet.OnServerInvoke = function(player, petId)
+		-- Rate limit check
+		if not CheckRateLimit(player, "UnequipPet") then
+			return {Success = false, Message = "Too many requests. Please slow down."}
+		end
+
 		local success = PetService:UnequipPet(player, petId)
 		return {Success = success}
 	end

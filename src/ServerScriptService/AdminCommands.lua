@@ -11,6 +11,8 @@ local UpgradeService = require(script.Parent:WaitForChild("UpgradeService"))
 local AdminCommands = {}
 
 -- List of admin user IDs (replace with your own)
+-- IMPORTANT: Add your actual Roblox UserId before publishing!
+-- Find your UserId at: roblox.com/users/YOUR_ID/profile
 AdminCommands.AdminIds = {
 	-- Add your Roblox user ID here
 	-- Example: 123456789,
@@ -25,8 +27,10 @@ function AdminCommands:IsAdmin(player)
 		end
 	end
 
-	-- Also allow in Studio for testing
+	-- PRODUCTION SECURITY: Remove this block before publishing!
+	-- This allows admin access in Studio for testing ONLY
 	if game:GetService("RunService"):IsStudio() then
+		warn("[SECURITY WARNING] Studio auto-admin is enabled - remove before production!")
 		return true
 	end
 
