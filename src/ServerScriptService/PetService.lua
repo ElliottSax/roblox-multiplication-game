@@ -546,8 +546,12 @@ function PetService:CreatePetFollower(player, pet)
 	end
 
 	-- Position near player
-	local petFolder = workspace:FindFirstChild("Pets") or Instance.new("Folder", workspace)
-	petFolder.Name = "Pets"
+	local petFolder = workspace:FindFirstChild("Pets")
+	if not petFolder then
+		petFolder = Instance.new("Folder")
+		petFolder.Name = "Pets"
+		petFolder.Parent = workspace
+	end
 
 	petModel.Position = rootPart.Position + Vector3.new(3, 2, 0)
 	petModel.Parent = petFolder
