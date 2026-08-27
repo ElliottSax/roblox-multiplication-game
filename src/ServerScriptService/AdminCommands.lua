@@ -13,6 +13,12 @@ local AdminCommands = {}
 -- List of admin user IDs (replace with your own)
 -- IMPORTANT: Add your actual Roblox UserId before publishing!
 -- Find your UserId at: roblox.com/users/YOUR_ID/profile
+-- To test admin commands in Studio, temporarily add your own UserId here -
+-- there is deliberately no automatic Studio bypass (see below): Team Create
+-- means anyone who opens this place in Studio would otherwise get admin for
+-- free, and that flag stays true if the exact same script ever runs as a
+-- published server (e.g. a Studio-run test server), so it is not a safe
+-- stand-in for a real whitelist.
 AdminCommands.AdminIds = {
 	-- Add your Roblox user ID here
 	-- Example: 123456789,
@@ -25,13 +31,6 @@ function AdminCommands:IsAdmin(player)
 		if player.UserId == adminId then
 			return true
 		end
-	end
-
-	-- PRODUCTION SECURITY: Remove this block before publishing!
-	-- This allows admin access in Studio for testing ONLY
-	if game:GetService("RunService"):IsStudio() then
-		warn("[SECURITY WARNING] Studio auto-admin is enabled - remove before production!")
-		return true
 	end
 
 	return false
