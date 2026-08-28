@@ -424,6 +424,7 @@ local function InitializeGame()
 	MultiplierService.QuestService = QuestService
 	MultiplierService.RebirthService = RebirthService
 	MultiplierService.PetService = PetService
+	MultiplierService.UpgradeService = UpgradeService
 	CurrencyService.AchievementService = AchievementService
 	CurrencyService.SoundService = SoundService
 	CurrencyService.QuestService = QuestService

@@ -16,6 +16,7 @@ MultiplierService.SoundService = nil -- Will be set by init script
 MultiplierService.QuestService = nil -- Will be set by init script
 MultiplierService.RebirthService = nil -- Will be set by init script
 MultiplierService.PetService = nil -- Will be set by init script
+MultiplierService.UpgradeService = nil -- Will be set by init script
 
 -- Create a multiplier gate in the world
 function MultiplierService:CreateGate(gateConfig, position)
@@ -120,6 +121,9 @@ function MultiplierService:OnObjectTouched(gate, hit, gateConfig)
 
 	-- Apply the multiplier effect (with combo bonus)
 	local effectiveValue = math.floor(gateConfig.Value * comboMultiplier)
+	if nearestPlayer and self.UpgradeService and math.random() < self.UpgradeService:GetUpgradeEffect(nearestPlayer, "LuckyGates") then
+		effectiveValue = effectiveValue * 2
+	end
 	local totalObjectsCreated = 0
 
 	if gateConfig.Type == "Multiply" then
