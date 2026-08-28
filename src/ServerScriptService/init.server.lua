@@ -243,8 +243,17 @@ local function CreateRemoteEvents()
 			return {Success = false, Message = "Too many requests. Please slow down."}
 		end
 
-		local success, tierConfig = RebirthService:Rebirth(player)
-		return {Success = success, TierConfig = tierConfig, Message = not success and tierConfig or nil}
+		local success, result = pcall(function()
+			local rebirthSuccess, tierConfig = RebirthService:Rebirth(player)
+			return {Success = rebirthSuccess, TierConfig = tierConfig, Message = not rebirthSuccess and tierConfig or nil}
+		end)
+
+		if success then
+			return result
+		else
+			warn("PerformRebirth error:", result)
+			return {Success = false, Message = "Server error"}
+		end
 	end
 
 	-- Quest remotes
@@ -280,8 +289,17 @@ local function CreateRemoteEvents()
 			return {Success = false, Message = "Too many requests. Please slow down."}
 		end
 
-		local success, reward = QuestService:ClaimReward(player, questId)
-		return {Success = success, Reward = reward, Message = not success and reward or nil}
+		local success, result = pcall(function()
+			local claimSuccess, reward = QuestService:ClaimReward(player, questId)
+			return {Success = claimSuccess, Reward = reward, Message = not claimSuccess and reward or nil}
+		end)
+
+		if success then
+			return result
+		else
+			warn("ClaimQuest error:", result)
+			return {Success = false, Message = "Server error"}
+		end
 	end
 
 	-- Pet remotes
@@ -325,8 +343,17 @@ local function CreateRemoteEvents()
 			return {Success = false, Message = "Too many requests. Please slow down."}
 		end
 
-		local success, petOrMessage = PetService:HatchEgg(player, eggId)
-		return {Success = success, Pet = success and petOrMessage or nil, Message = not success and petOrMessage or nil}
+		local success, result = pcall(function()
+			local hatchSuccess, petOrMessage = PetService:HatchEgg(player, eggId)
+			return {Success = hatchSuccess, Pet = hatchSuccess and petOrMessage or nil, Message = not hatchSuccess and petOrMessage or nil}
+		end)
+
+		if success then
+			return result
+		else
+			warn("HatchEgg error:", result)
+			return {Success = false, Message = "Server error"}
+		end
 	end
 
 	equipPet.OnServerInvoke = function(player, petId)
@@ -335,8 +362,17 @@ local function CreateRemoteEvents()
 			return {Success = false, Message = "Too many requests. Please slow down."}
 		end
 
-		local success, result = PetService:EquipPet(player, petId)
-		return {Success = success, Pet = result}
+		local success, result = pcall(function()
+			local equipSuccess, pet = PetService:EquipPet(player, petId)
+			return {Success = equipSuccess, Pet = pet}
+		end)
+
+		if success then
+			return result
+		else
+			warn("EquipPet error:", result)
+			return {Success = false, Message = "Server error"}
+		end
 	end
 
 	unequipPet.OnServerInvoke = function(player, petId)
@@ -345,8 +381,17 @@ local function CreateRemoteEvents()
 			return {Success = false, Message = "Too many requests. Please slow down."}
 		end
 
-		local success = PetService:UnequipPet(player, petId)
-		return {Success = success}
+		local success, result = pcall(function()
+			local unequipSuccess = PetService:UnequipPet(player, petId)
+			return {Success = unequipSuccess}
+		end)
+
+		if success then
+			return result
+		else
+			warn("UnequipPet error:", result)
+			return {Success = false, Message = "Server error"}
+		end
 	end
 
 	print("Remote events created")

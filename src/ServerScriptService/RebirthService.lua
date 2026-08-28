@@ -260,7 +260,7 @@ function RebirthService:Rebirth(player)
 
 	-- Play rebirth sound
 	if self.SoundService then
-		self.SoundService:PlaySound("Rebirth", player)
+		self.SoundService:PlaySound("Rebirth")
 	end
 
 	-- Achievement tracking

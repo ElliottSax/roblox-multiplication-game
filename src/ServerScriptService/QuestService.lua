@@ -336,7 +336,7 @@ function QuestService:OnQuestCompleted(player, quest)
 
 	-- Play sound
 	if self.SoundService then
-		self.SoundService:PlaySound("QuestComplete", player)
+		self.SoundService:PlaySound("QuestComplete")
 	end
 
 	-- Notify client
@@ -386,7 +386,7 @@ function QuestService:ClaimReward(player, questId)
 
 			-- Play sound
 			if self.SoundService then
-				self.SoundService:PlaySound("QuestClaim", player)
+				self.SoundService:PlaySound("QuestClaim")
 			end
 
 			print(string.format("[QuestService] %s claimed %d for quest: %s",

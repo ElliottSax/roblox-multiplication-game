@@ -294,7 +294,7 @@ function PetService:HatchEgg(player, eggId)
 		local soundName = rarity == "Mythic" and "MythicHatch" or
 			rarity == "Legendary" and "LegendaryHatch" or
 			rarity == "Epic" and "EpicHatch" or "Hatch"
-		self.SoundService:PlaySound(soundName, player)
+		self.SoundService:PlaySound(soundName)
 	end
 
 	-- Achievement tracking

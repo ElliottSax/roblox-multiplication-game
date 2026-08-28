@@ -8,6 +8,7 @@ local CurrencyService = require(script.Parent:WaitForChild("CurrencyService"))
 
 local PathManager = {}
 PathManager.PathParts = {}
+PathManager.ProcessedObjects = {} -- Track objects to prevent double-collection
 
 -- Create the main runway/path
 function PathManager:CreatePath(startPosition)
@@ -120,6 +121,14 @@ function PathManager:OnObjectCollected(hit)
 		return -- Not a game object
 	end
 
+	-- Prevent processing the same object multiple times (Touched can fire
+	-- again before the object is Destroy()'d, e.g. from concurrent threads)
+	local objectId = hit:GetDebugId()
+	if self.ProcessedObjects[objectId] then
+		return
+	end
+	self.ProcessedObjects[objectId] = true
+
 	-- Find the nearest player to give credit
 	local nearestPlayer = self:FindNearestPlayer(hit.Position)
 	if nearestPlayer then
@@ -128,6 +137,10 @@ function PathManager:OnObjectCollected(hit)
 		-- No player nearby, just remove the object
 		ObjectManager:RemoveObject(hit)
 	end
+
+	task.delay(5, function()
+		self.ProcessedObjects[objectId] = nil
+	end)
 end
 
 -- Find the nearest player to a position
@@ -201,6 +214,7 @@ function PathManager:ClearPath()
 		end
 	end
 	self.PathParts = {}
+	self.ProcessedObjects = {}
 end
 
 return PathManager
