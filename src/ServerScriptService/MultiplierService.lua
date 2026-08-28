@@ -18,6 +18,25 @@ MultiplierService.RebirthService = nil -- Will be set by init script
 MultiplierService.PetService = nil -- Will be set by init script
 MultiplierService.UpgradeService = nil -- Will be set by init script
 
+-- Apply forward velocity to a list of parts so they continue moving along the path,
+-- then clean up the BodyVelocity after a short time.
+local function ApplyForwardPush(objects)
+	for _, object in ipairs(objects) do
+		if object:IsA("BasePart") then
+			local bodyVelocity = Instance.new("BodyVelocity")
+			bodyVelocity.Velocity = Vector3.new(0, 0, -Config.Physics.PathSpeed)
+			bodyVelocity.MaxForce = Vector3.new(0, 0, 50000)
+			bodyVelocity.Parent = object
+
+			task.delay(2, function()
+				if bodyVelocity and bodyVelocity.Parent then
+					bodyVelocity:Destroy()
+				end
+			end)
+		end
+	end
+end
+
 -- Create a multiplier gate in the world
 function MultiplierService:CreateGate(gateConfig, position)
 	-- Create gate frame
@@ -166,22 +185,7 @@ end
 function MultiplierService:MultiplyObject(object, multiplier)
 	local clones = ObjectManager:CloneObject(object, multiplier)
 
-	-- Apply forward velocity to clones so they continue moving
-	for _, clone in ipairs(clones) do
-		if clone:IsA("BasePart") then
-			local bodyVelocity = Instance.new("BodyVelocity")
-			bodyVelocity.Velocity = Vector3.new(0, 0, -Config.Physics.PathSpeed)
-			bodyVelocity.MaxForce = Vector3.new(0, 0, 50000)
-			bodyVelocity.Parent = clone
-
-			-- Remove velocity after a short time
-			task.delay(2, function()
-				if bodyVelocity and bodyVelocity.Parent then
-					bodyVelocity:Destroy()
-				end
-			end)
-		end
-	end
+	ApplyForwardPush(clones)
 
 	print(string.format("Multiplied %s by %d (created %d clones)", object.Name, multiplier, #clones))
 	return #clones
@@ -195,21 +199,7 @@ function MultiplierService:AddObjects(referenceObject, count)
 	local position = referenceObject.Position
 	local newObjects = ObjectManager:AddObjects(objectType.Value, position, count)
 
-	-- Apply forward velocity to new objects
-	for _, object in ipairs(newObjects) do
-		if object:IsA("BasePart") then
-			local bodyVelocity = Instance.new("BodyVelocity")
-			bodyVelocity.Velocity = Vector3.new(0, 0, -Config.Physics.PathSpeed)
-			bodyVelocity.MaxForce = Vector3.new(0, 0, 50000)
-			bodyVelocity.Parent = object
-
-			task.delay(2, function()
-				if bodyVelocity and bodyVelocity.Parent then
-					bodyVelocity:Destroy()
-				end
-			end)
-		end
-	end
+	ApplyForwardPush(newObjects)
 
 	print(string.format("Added %d new %s objects", count, referenceObject.Name))
 	return #newObjects
@@ -389,20 +379,7 @@ function MultiplierService:PowerObject(object, power)
 	if toCreate > 0 then
 		local clones = ObjectManager:CloneObject(object, toCreate)
 
-		for _, clone in ipairs(clones) do
-			if clone:IsA("BasePart") then
-				local bodyVelocity = Instance.new("BodyVelocity")
-				bodyVelocity.Velocity = Vector3.new(0, 0, -Config.Physics.PathSpeed)
-				bodyVelocity.MaxForce = Vector3.new(0, 0, 50000)
-				bodyVelocity.Parent = clone
-
-				task.delay(2, function()
-					if bodyVelocity and bodyVelocity.Parent then
-						bodyVelocity:Destroy()
-					end
-				end)
-			end
-		end
+		ApplyForwardPush(clones)
 
 		print(string.format("Power gate: %d^%d = %d (created %d)", nearbyCount, power, targetCount, toCreate))
 		return toCreate
