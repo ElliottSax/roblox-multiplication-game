@@ -37,6 +37,29 @@ local function ApplyForwardPush(objects)
 	end
 end
 
+-- Find all workspace objects of the same ObjectType within `radius` studs of referenceObject
+local function FindNearbyObjectsOfType(referenceObject, objectType, radius)
+	local nearby = {}
+	for _, obj in pairs(workspace:GetChildren()) do
+		local objType = obj:FindFirstChild("ObjectType")
+		if objType and objType.Value == objectType.Value then
+			local distance = (obj.Position - referenceObject.Position).Magnitude
+			if distance < radius then
+				table.insert(nearby, obj)
+			end
+		end
+	end
+	return nearby
+end
+
+-- Fisher-Yates shuffle, in place
+local function ShuffleInPlace(list)
+	for i = #list, 2, -1 do
+		local j = math.random(i)
+		list[i], list[j] = list[j], list[i]
+	end
+end
+
 -- Create a multiplier gate in the world
 function MultiplierService:CreateGate(gateConfig, position)
 	-- Create gate frame
@@ -212,27 +235,14 @@ function MultiplierService:SubtractObjects(referenceObject, percentage, valueMul
 	if not objectType then return 0 end
 
 	-- Get all game objects
-	local objectsToRemove = {}
-	local objectsToKeep = {}
-
-	for _, obj in pairs(workspace:GetChildren()) do
-		if obj:FindFirstChild("ObjectType") and obj:FindFirstChild("ObjectType").Value == objectType.Value then
-			local distance = (obj.Position - referenceObject.Position).Magnitude
-			if distance < 20 then -- Within 20 studs
-				table.insert(objectsToRemove, obj)
-			end
-		end
-	end
+	local objectsToRemove = FindNearbyObjectsOfType(referenceObject, objectType, 20)
 
 	-- Calculate how many to remove
 	local removeCount = math.floor(#objectsToRemove * (percentage / 100))
 	local keepCount = #objectsToRemove - removeCount
 
 	-- Shuffle and remove
-	for i = #objectsToRemove, 2, -1 do
-		local j = math.random(i)
-		objectsToRemove[i], objectsToRemove[j] = objectsToRemove[j], objectsToRemove[i]
-	end
+	ShuffleInPlace(objectsToRemove)
 
 	for i = 1, removeCount do
 		if objectsToRemove[i] and objectsToRemove[i].Parent then
@@ -261,25 +271,14 @@ function MultiplierService:DivideObjects(referenceObject, divisor, valueMultipli
 	if not objectType then return 0 end
 
 	-- Find nearby objects
-	local nearbyObjects = {}
-	for _, obj in pairs(workspace:GetChildren()) do
-		if obj:FindFirstChild("ObjectType") and obj:FindFirstChild("ObjectType").Value == objectType.Value then
-			local distance = (obj.Position - referenceObject.Position).Magnitude
-			if distance < 20 then
-				table.insert(nearbyObjects, obj)
-			end
-		end
-	end
+	local nearbyObjects = FindNearbyObjectsOfType(referenceObject, objectType, 20)
 
 	-- Keep only 1/divisor of objects
 	local keepCount = math.max(1, math.floor(#nearbyObjects / divisor))
 	local removeCount = #nearbyObjects - keepCount
 
 	-- Shuffle
-	for i = #nearbyObjects, 2, -1 do
-		local j = math.random(i)
-		nearbyObjects[i], nearbyObjects[j] = nearbyObjects[j], nearbyObjects[i]
-	end
+	ShuffleInPlace(nearbyObjects)
 
 	-- Remove excess and boost value of kept objects
 	for i = 1, removeCount do
@@ -362,15 +361,7 @@ function MultiplierService:PowerObject(object, power)
 	local objectType = object:FindFirstChild("ObjectType")
 	if not objectType then return 0 end
 
-	local nearbyCount = 0
-	for _, obj in pairs(workspace:GetChildren()) do
-		if obj:FindFirstChild("ObjectType") and obj:FindFirstChild("ObjectType").Value == objectType.Value then
-			local distance = (obj.Position - object.Position).Magnitude
-			if distance < 25 then
-				nearbyCount = nearbyCount + 1
-			end
-		end
-	end
+	local nearbyCount = #FindNearbyObjectsOfType(object, objectType, 25)
 
 	-- Square it (capped at 100 to prevent lag)
 	local targetCount = math.min(nearbyCount ^ power, 100)
