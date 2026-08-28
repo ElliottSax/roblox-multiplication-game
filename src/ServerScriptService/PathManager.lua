@@ -147,7 +147,7 @@ end
 function PathManager:FindNearestPlayer(position)
 	local Players = game:GetService("Players")
 	local nearestPlayer = nil
-	local shortestDistance = math.huge
+	local shortestDistance = 100 -- Max distance to count (matches MultiplierService:FindNearestPlayer)
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
