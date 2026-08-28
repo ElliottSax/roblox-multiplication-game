@@ -408,6 +408,9 @@ local GameState = {
 local function InitializeGame()
 	print("Creating game path...")
 
+	-- Reclaim objects that overshoot the collection zone (no KillBrick exists in the world)
+	ObjectManager:StartWatchdog()
+
 	-- Initialize sound service
 	SoundService:Initialize()
 

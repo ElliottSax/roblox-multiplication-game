@@ -2,6 +2,7 @@
 -- Manages spawning, cloning, and lifecycle of game objects
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 
 local ObjectManager = {}
@@ -184,13 +185,6 @@ function ObjectManager:SpawnObject(objectType, position)
 	self.ObjectCount += 1
 	table.insert(self.ActiveObjects, template)
 
-	-- Clean up if object falls off the map
-	template.Touched:Connect(function(hit)
-		if hit.Name == "KillBrick" or hit.Parent.Name == "KillBricks" then
-			self:RemoveObject(template)
-		end
-	end)
-
 	return template
 end
 
@@ -275,6 +269,29 @@ function ObjectManager:ClearAllObjects()
 	end
 	self.ActiveObjects = {}
 	self.ObjectCount = 0
+end
+
+local KILL_Y = -50 -- below this, any tracked object is considered lost
+local WATCHDOG_INTERVAL = 1 -- seconds between sweeps; ActiveObjects is typically small
+
+-- Reclaims objects that overshot the collection zone (no KillBrick exists to catch them)
+function ObjectManager:StartWatchdog()
+	if self._watchdogConnection then return end
+
+	local accumulated = 0
+	self._watchdogConnection = RunService.Heartbeat:Connect(function(dt)
+		accumulated += dt
+		if accumulated < WATCHDOG_INTERVAL then return end
+		accumulated = 0
+
+		-- Iterate backwards since RemoveObject mutates ActiveObjects
+		for i = #self.ActiveObjects, 1, -1 do
+			local obj = self.ActiveObjects[i]
+			if not obj or not obj.Parent or obj.Position.Y < KILL_Y then
+				self:RemoveObject(obj)
+			end
+		end
+	end)
 end
 
 return ObjectManager
