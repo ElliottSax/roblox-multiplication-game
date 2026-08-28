@@ -477,9 +477,15 @@ end
 
 -- Spawn objects automatically
 local function SpawnObjects()
-	-- Start with Goblins
-	local objectType = "Goblin"
-	local spawnConfig = Config.Objects[objectType]
+	-- Spawn loop is global/shared rather than per-player, so gate the
+	-- weighted progression on whichever active player has gone furthest
+	local totalEarned = 0
+	for _, player in ipairs(Players:GetPlayers()) do
+		local data = CurrencyService.PlayerData[player.UserId]
+		if data and data.TotalValue and data.TotalValue > totalEarned then
+			totalEarned = data.TotalValue
+		end
+	end
 
 	-- Spawn at the spawn platform
 	local spawnPosition = GameState.SpawnPosition + Vector3.new(
@@ -488,7 +494,7 @@ local function SpawnObjects()
 		math.random(-2, 2)
 	)
 
-	local object = ObjectManager:SpawnObject(objectType, spawnPosition)
+	local object = ObjectManager:SpawnRandomObject(spawnPosition, totalEarned)
 
 	if object then
 		-- Give initial forward momentum
@@ -504,7 +510,8 @@ local function SpawnObjects()
 			end
 		end)
 
-		print("Spawned " .. objectType)
+		local typeTag = object:FindFirstChild("ObjectType")
+		print("Spawned " .. (typeTag and typeTag.Value or "Unknown"))
 	end
 end
 
