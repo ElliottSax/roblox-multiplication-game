@@ -13,18 +13,13 @@ A Roblox game where players push objects through multiplier gates to increase th
 
 ```
 src/
-├── ServerScriptService/
-│   ├── ObjectManager.lua - Spawns and manages game objects
-│   ├── MultiplierService.lua - Handles multiplication gates
-│   ├── CurrencyService.lua - Manages player currency
-│   └── PathManager.lua - Controls object movement paths
-├── ReplicatedStorage/
-│   ├── Config.lua - Game configuration
-│   └── Shared/
-│       └── Utilities.lua - Shared utility functions
-└── StarterGui/
-    └── GameUI.lua - UI for currency and multipliers
+├── ServerScriptService/          - Game services (currency, multipliers, combos, quests, pets, boss waves, etc.)
+├── ReplicatedStorage/             - Shared config (Config.lua)
+├── StarterGui/                    - Player-facing UI for each system
+└── StarterPlayer/StarterCharacterScripts/ - Per-character controller
 ```
+
+See [FEATURES.md](FEATURES.md) for the full, current list of services and systems.
 
 ## Installation
 
