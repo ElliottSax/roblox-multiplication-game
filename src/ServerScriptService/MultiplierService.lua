@@ -9,6 +9,7 @@ local ObjectManager = require(script.Parent:WaitForChild("ObjectManager"))
 local MultiplierService = {}
 MultiplierService.Gates = {}
 MultiplierService.ProcessedObjects = {} -- Track objects to prevent double-processing
+MultiplierService.GateEffectActive = {} -- Debounce PlayGateEffect per gate so simultaneous touches don't stack coroutines
 MultiplierService.ComboService = nil -- Will be set by init script
 MultiplierService.AchievementService = nil -- Will be set by init script
 MultiplierService.SoundService = nil -- Will be set by init script
@@ -408,6 +409,9 @@ end
 
 -- Visual effect when gate is activated
 function MultiplierService:PlayGateEffect(gate)
+	if self.GateEffectActive[gate] then return end
+	self.GateEffectActive[gate] = true
+
 	local originalTransparency = gate.Transparency
 
 	-- Flash effect
@@ -422,6 +426,8 @@ function MultiplierService:PlayGateEffect(gate)
 		task.wait(0.5)
 		emitter.Rate = 20
 	end
+
+	self.GateEffectActive[gate] = nil
 end
 
 -- Pick a weighted random gate configuration
@@ -492,6 +498,7 @@ function MultiplierService:ClearAllGates()
 	end
 	self.Gates = {}
 	self.ProcessedObjects = {}
+	self.GateEffectActive = {}
 end
 
 return MultiplierService
