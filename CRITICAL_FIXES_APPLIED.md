@@ -223,7 +223,7 @@ roblox/roblox-multiplication-game/
 2. ✅ UpdateAsync implemented
 3. ✅ Admin warnings added
 4. ⚠️ **REPLACE AdminIds with your UserId**
-5. ⚠️ **REMOVE Studio auto-admin block**
+5. ✅ Studio auto-admin block removed (commit 64baf9b)
 6. [ ] Run all security tests
 7. [ ] Run all functionality tests
 8. [ ] Test with 5+ concurrent players
@@ -289,7 +289,7 @@ These are **not critical** but will improve the game further:
 ## Next Steps
 
 1. **Replace AdminIds** with your actual Roblox UserId
-2. **Remove Studio auto-admin** block (lines 28-31 in AdminCommands.lua)
+2. ~~Remove Studio auto-admin block~~ — already done (commit 64baf9b)
 3. **Run testing checklist** (see above)
 4. **Deploy to Roblox** when all tests pass
 5. **Monitor live performance** after deployment

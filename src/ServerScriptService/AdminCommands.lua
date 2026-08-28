@@ -7,6 +7,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local ObjectManager = require(script.Parent:WaitForChild("ObjectManager"))
 local CurrencyService = require(script.Parent:WaitForChild("CurrencyService"))
 local UpgradeService = require(script.Parent:WaitForChild("UpgradeService"))
+local DataService = require(script.Parent:WaitForChild("DataService"))
 
 local AdminCommands = {}
 
@@ -103,6 +104,15 @@ local function CommandGiveUpgrade(player, upgradeName, level)
 	return string.format("Set %s to level %d", upgradeName, level)
 end
 
+-- Command: Wipe player data
+local function CommandWipeData(player)
+	local success = DataService:WipeData(player)
+	if success then
+		return "Wiped your data"
+	end
+	return "Failed to wipe data (see server log)"
+end
+
 -- Command: Teleport to spawn
 local function CommandTeleportSpawn(player)
 	local character = player.Character
@@ -144,6 +154,7 @@ Admin Commands:
 /clear - Clear all objects
 /spawn [type] [count] - Spawn objects
 /upgrade [name] [level] - Set upgrade level
+/wipe - Wipe your saved data
 /tp - Teleport to spawn
 /stats - Show game stats
 /help - Show this message
@@ -159,6 +170,7 @@ local Commands = {
 	clear = CommandClearObjects,
 	spawn = CommandSpawnObject,
 	upgrade = CommandGiveUpgrade,
+	wipe = CommandWipeData,
 	tp = CommandTeleportSpawn,
 	stats = CommandShowStats,
 	help = CommandHelp,

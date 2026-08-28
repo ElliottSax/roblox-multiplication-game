@@ -274,35 +274,4 @@ function DataService:WipeData(player)
 	end
 end
 
--- Get leaderboard data
-function DataService:GetLeaderboard(statName, limit)
-	limit = limit or 10
-
-	-- This is a simplified version - in production you'd use OrderedDataStore
-	local leaderboard = {}
-
-	for userId, data in pairs(self.SessionData) do
-		local player = Players:GetPlayerByUserId(userId)
-		if player then
-			table.insert(leaderboard, {
-				Name = player.Name,
-				Value = data[statName] or 0
-			})
-		end
-	end
-
-	-- Sort by value
-	table.sort(leaderboard, function(a, b)
-		return a.Value > b.Value
-	end)
-
-	-- Return top N
-	local top = {}
-	for i = 1, math.min(limit, #leaderboard) do
-		table.insert(top, leaderboard[i])
-	end
-
-	return top
-end
-
 return DataService

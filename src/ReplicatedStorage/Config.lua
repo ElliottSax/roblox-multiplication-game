@@ -143,21 +143,4 @@ Config.Currency = {
 	CollectionBonus = 1.0, -- Multiplier for collected objects
 }
 
--- Upgrade Settings
-Config.Upgrades = {
-	SpeedBoost = {
-		Cost = 100,
-		Multiplier = 1.5,
-		Description = "Increase push force by 50%",
-	},
-	AutoPush = {
-		Cost = 500,
-		Description = "Objects automatically move forward",
-	},
-	BetterSpawns = {
-		Cost = 250,
-		Description = "Spawn higher value objects",
-	}
-}
-
 return Config
