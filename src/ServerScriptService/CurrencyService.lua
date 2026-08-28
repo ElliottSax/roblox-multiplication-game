@@ -13,6 +13,7 @@ CurrencyService.SoundService = nil -- Set by init.server.lua
 CurrencyService.QuestService = nil -- Set by init.server.lua
 CurrencyService.RebirthService = nil -- Set by init.server.lua
 CurrencyService.PetService = nil -- Set by init.server.lua
+CurrencyService.UpgradeService = nil -- Set by init.server.lua
 
 -- Initialize player data when they join
 function CurrencyService:InitializePlayer(player)
@@ -105,8 +106,14 @@ function CurrencyService:CollectObject(player, object)
 		petMultiplier = self.PetService:GetTotalBonus(player, "CurrencyMultiplier")
 	end
 
+	-- Apply purchased Value Boost upgrade
+	local upgradeMultiplier = 1.0
+	if self.UpgradeService then
+		upgradeMultiplier = self.UpgradeService:GetUpgradeEffect(player, "CurrencyBonus")
+	end
+
 	-- Calculate final currency
-	local currencyGained = math.floor(baseCurrency * rebirthMultiplier * petMultiplier)
+	local currencyGained = math.floor(baseCurrency * rebirthMultiplier * petMultiplier * upgradeMultiplier)
 
 	-- Update stats
 	data.ObjectsCollected += 1

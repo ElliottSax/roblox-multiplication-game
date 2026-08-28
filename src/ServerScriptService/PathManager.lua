@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local ObjectManager = require(script.Parent:WaitForChild("ObjectManager"))
 local CurrencyService = require(script.Parent:WaitForChild("CurrencyService"))
+local UpgradeService = require(script.Parent:WaitForChild("UpgradeService"))
 
 local PathManager = {}
 PathManager.PathParts = {}
@@ -199,7 +200,7 @@ function PathManager:EnableObjectPushing()
 						bodyVelocity.Parent = hit
 					end
 
-					bodyVelocity.Velocity = pushDirection * Config.Physics.PushForce
+					bodyVelocity.Velocity = pushDirection * Config.Physics.PushForce * UpgradeService:GetUpgradeEffect(player, "PushForce")
 				end
 			end)
 		end)
