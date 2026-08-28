@@ -4,6 +4,13 @@
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 
+local CurrencyService = require(script.Parent:WaitForChild("CurrencyService"))
+local UpgradeService = require(script.Parent:WaitForChild("UpgradeService"))
+local AchievementService = require(script.Parent:WaitForChild("AchievementService"))
+local RebirthService = require(script.Parent:WaitForChild("RebirthService"))
+local QuestService = require(script.Parent:WaitForChild("QuestService"))
+local PetService = require(script.Parent:WaitForChild("PetService"))
+
 local DataService = {}
 DataService.PlayerDataStore = DataStoreService:GetDataStore("PlayerData_v1")
 DataService.AutoSaveInterval = 300 -- Save every 5 minutes
@@ -78,8 +85,49 @@ function DataService:LoadData(player)
 	return playerData
 end
 
+-- Pull current live-service state into SessionData so a save reflects this moment, not join time
+function DataService:SyncSessionData(player)
+	local userId = player.UserId
+	local sessionData = self.SessionData[userId]
+	if not sessionData then return end
+
+	local currencyData = CurrencyService.PlayerData[userId]
+	if currencyData then
+		sessionData.Currency = currencyData.Currency
+		sessionData.ObjectsCollected = currencyData.ObjectsCollected
+		sessionData.TotalValue = currencyData.TotalValue
+	end
+
+	local upgrades = UpgradeService.PlayerUpgrades[userId]
+	if upgrades then
+		sessionData.Upgrades = upgrades
+	end
+
+	local achievementData = AchievementService:GetSaveData(player)
+	if achievementData then
+		sessionData.Achievements = achievementData
+	end
+
+	local rebirthData = RebirthService:GetSaveData(player)
+	if rebirthData then
+		sessionData.Rebirth = rebirthData
+	end
+
+	local questData = QuestService:GetSaveData(player)
+	if questData then
+		sessionData.Quests = questData
+	end
+
+	local petData = PetService:GetSaveData(player)
+	if petData then
+		sessionData.Pets = petData
+	end
+end
+
 -- Save player data
 function DataService:SaveData(player)
+	self:SyncSessionData(player)
+
 	local userId = player.UserId
 	local data = self.SessionData[userId]
 

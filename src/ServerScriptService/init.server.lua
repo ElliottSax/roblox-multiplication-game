@@ -576,48 +576,6 @@ end)
 Players.PlayerRemoving:Connect(function(player)
 	print(string.format("Player %s left the game", player.Name))
 
-	-- Save player data before cleanup
-	local sessionData = DataService:GetData(player)
-	if sessionData then
-		-- Update session data with current values
-		local currencyData = CurrencyService.PlayerData[player.UserId]
-		if currencyData then
-			sessionData.Currency = currencyData.Currency
-			sessionData.ObjectsCollected = currencyData.ObjectsCollected
-			sessionData.TotalValue = currencyData.TotalValue
-		end
-
-		-- Save upgrades
-		local upgrades = UpgradeService.PlayerUpgrades[player.UserId]
-		if upgrades then
-			sessionData.Upgrades = upgrades
-		end
-
-		-- Save achievements
-		local achievementData = AchievementService:GetSaveData(player)
-		if achievementData then
-			sessionData.Achievements = achievementData
-		end
-
-		-- Save rebirth data
-		local rebirthData = RebirthService:GetSaveData(player)
-		if rebirthData then
-			sessionData.Rebirth = rebirthData
-		end
-
-		-- Save quest data
-		local questData = QuestService:GetSaveData(player)
-		if questData then
-			sessionData.Quests = questData
-		end
-
-		-- Save pet data
-		local petData = PetService:GetSaveData(player)
-		if petData then
-			sessionData.Pets = petData
-		end
-	end
-
 	-- Update leaderboards before saving
 	local currencyData = CurrencyService.PlayerData[player.UserId]
 	local comboData = ComboService.PlayerCombos[player.UserId]
