@@ -211,6 +211,13 @@ function BossWaveService:SpawnBossObject(bossConfig)
 
 	boss.Parent = workspace
 
+	local ok = pcall(function()
+		boss:SetNetworkOwner(nil)
+	end)
+	if not ok then
+		warn("Failed to set network owner for", boss.Name)
+	end
+
 	-- Add particle effects
 	self:AddBossParticles(boss, bossConfig.Color)
 

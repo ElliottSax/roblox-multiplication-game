@@ -181,6 +181,14 @@ function ObjectManager:SpawnObject(objectType, position)
 	template.Position = position
 	template.Parent = workspace
 
+	-- Keep physics server-authoritative; client ownership here would let clients fake scoring touches
+	local ok = pcall(function()
+		template:SetNetworkOwner(nil)
+	end)
+	if not ok then
+		warn("Failed to set network owner for", template.Name)
+	end
+
 	-- Track the object
 	self.ObjectCount += 1
 	table.insert(self.ActiveObjects, template)
@@ -210,6 +218,13 @@ function ObjectManager:CloneObject(originalObject, count)
 		)
 		clone.Position = originalObject.Position + offset
 		clone.Parent = workspace
+
+		local ok = pcall(function()
+			clone:SetNetworkOwner(nil)
+		end)
+		if not ok then
+			warn("Failed to set network owner for", clone.Name)
+		end
 
 		-- Track the clone
 		self.ObjectCount += 1
