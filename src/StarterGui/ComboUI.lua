@@ -80,10 +80,21 @@ notificationText.TextStrokeTransparency = 0
 notificationText.TextStrokeColor3 = Color3.new(0, 0, 0)
 notificationText.Parent = notificationFrame
 
+local activePulseTween = nil
+local activeResetTween = nil
+
 -- Update combo display
 local function UpdateComboDisplay(comboCount, multiplier)
 	if comboCount == 0 then
 		-- Hide combo display
+		if activePulseTween then
+			activePulseTween:Cancel()
+			activePulseTween = nil
+		end
+		if activeResetTween then
+			activeResetTween:Cancel()
+			activeResetTween = nil
+		end
 		comboFrame.BackgroundTransparency = 1
 		comboCountLabel.Text = ""
 		multiplierLabel.Text = ""
@@ -93,21 +104,36 @@ local function UpdateComboDisplay(comboCount, multiplier)
 		comboCountLabel.Text = string.format("%d COMBO!", comboCount)
 		multiplierLabel.Text = string.format("x%.1f Multiplier", multiplier)
 
+		-- Cancel any tweens still running from a previous update so they don't
+		-- stack on the same TextSize property, and reset to the base size since
+		-- Cancel() leaves TextSize wherever the interrupted tween left it
+		if activePulseTween then
+			activePulseTween:Cancel()
+		end
+		if activeResetTween then
+			activeResetTween:Cancel()
+		end
+		comboCountLabel.TextSize = 36
+
 		-- Pulse animation
-		local pulseTween = TweenService:Create(
+		activePulseTween = TweenService:Create(
 			comboCountLabel,
 			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{TextSize = 40}
 		)
-		pulseTween:Play()
+		activePulseTween:Play()
 
-		pulseTween.Completed:Connect(function()
-			local resetTween = TweenService:Create(
+		activePulseTween.Completed:Connect(function(playbackState)
+			-- Cancel() also fires Completed; skip so a stale pulse doesn't spawn a stray reset
+			if playbackState ~= Enum.PlaybackState.Completed then
+				return
+			end
+			activeResetTween = TweenService:Create(
 				comboCountLabel,
 				TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
 				{TextSize = 36}
 			)
-			resetTween:Play()
+			activeResetTween:Play()
 		end)
 	end
 end
