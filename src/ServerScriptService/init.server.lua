@@ -60,6 +60,24 @@ local function CheckRateLimit(player, remoteName)
 	return true
 end
 
+-- Wrap a RemoteFunction handler with rate limiting + pcall + warn-on-error
+local function WrapHandler(remoteName, rateLimitDefault, errorDefault, fn)
+	return function(player, ...)
+		if not CheckRateLimit(player, remoteName) then
+			return rateLimitDefault
+		end
+
+		local success, result = pcall(fn, player, ...)
+
+		if success then
+			return result
+		else
+			warn(remoteName .. " error:", result)
+			return errorDefault
+		end
+	end
+end
+
 -- Cleanup old rate limit entries periodically
 task.spawn(function()
 	while true do
@@ -119,96 +137,26 @@ local function CreateRemoteEvents()
 	getLeaderboardInfo.Parent = ReplicatedStorage
 
 	-- Set up remote handlers with error handling and rate limiting
-	getUpgrades.OnServerInvoke = function(player)
-		-- Rate limit check
-		if not CheckRateLimit(player, "GetUpgrades") then
-			return {}
-		end
+	getUpgrades.OnServerInvoke = WrapHandler("GetUpgrades", {}, {}, function(player)
+		return UpgradeService:GetAllUpgrades(player)
+	end)
 
-		local success, result = pcall(function()
-			return UpgradeService:GetAllUpgrades(player)
-		end)
+	purchaseUpgrade.OnServerInvoke = WrapHandler("PurchaseUpgrade", {Success = false, Message = "Too many requests. Please slow down."}, {Success = false, Message = "Server error"}, function(player, upgradeName)
+		local purchaseSuccess, message = UpgradeService:PurchaseUpgrade(player, upgradeName)
+		return {Success = purchaseSuccess, Message = message}
+	end)
 
-		if success then
-			return result
-		else
-			warn("GetUpgrades error:", result)
-			return {}
-		end
-	end
+	getAchievements.OnServerInvoke = WrapHandler("GetAchievements", {}, {}, function(player)
+		return AchievementService:GetAllAchievements(player)
+	end)
 
-	purchaseUpgrade.OnServerInvoke = function(player, upgradeName)
-		-- Rate limit check
-		if not CheckRateLimit(player, "PurchaseUpgrade") then
-			return {Success = false, Message = "Too many requests. Please slow down."}
-		end
+	getLeaderboard.OnServerInvoke = WrapHandler("GetLeaderboard", {}, {}, function(player, leaderboardId)
+		return LeaderboardService:GetLeaderboard(leaderboardId, 100)
+	end)
 
-		local success, result = pcall(function()
-			local purchaseSuccess, message = UpgradeService:PurchaseUpgrade(player, upgradeName)
-			return {Success = purchaseSuccess, Message = message}
-		end)
-
-		if success then
-			return result
-		else
-			warn("PurchaseUpgrade error:", result)
-			return {Success = false, Message = "Server error"}
-		end
-	end
-
-	getAchievements.OnServerInvoke = function(player)
-		-- Rate limit check
-		if not CheckRateLimit(player, "GetAchievements") then
-			return {}
-		end
-
-		local success, result = pcall(function()
-			return AchievementService:GetAllAchievements(player)
-		end)
-
-		if success then
-			return result
-		else
-			warn("GetAchievements error:", result)
-			return {}
-		end
-	end
-
-	getLeaderboard.OnServerInvoke = function(player, leaderboardId)
-		-- Rate limit check
-		if not CheckRateLimit(player, "GetLeaderboard") then
-			return {}
-		end
-
-		local success, result = pcall(function()
-			return LeaderboardService:GetLeaderboard(leaderboardId, 100)
-		end)
-
-		if success then
-			return result
-		else
-			warn("GetLeaderboard error:", result)
-			return {}
-		end
-	end
-
-	getLeaderboardInfo.OnServerInvoke = function(player)
-		-- Rate limit check
-		if not CheckRateLimit(player, "GetLeaderboardInfo") then
-			return {}
-		end
-
-		local success, result = pcall(function()
-			return LeaderboardService:GetAllLeaderboardInfo()
-		end)
-
-		if success then
-			return result
-		else
-			warn("GetLeaderboardInfo error:", result)
-			return {}
-		end
-	end
+	getLeaderboardInfo.OnServerInvoke = WrapHandler("GetLeaderboardInfo", {}, {}, function(player)
+		return LeaderboardService:GetAllLeaderboardInfo()
+	end)
 
 	-- Rebirth remotes
 	local getRebirthInfo = Instance.new("RemoteFunction")
@@ -219,42 +167,14 @@ local function CreateRemoteEvents()
 	performRebirth.Name = "PerformRebirth"
 	performRebirth.Parent = ReplicatedStorage
 
-	getRebirthInfo.OnServerInvoke = function(player)
-		-- Rate limit check
-		if not CheckRateLimit(player, "GetRebirthInfo") then
-			return {}
-		end
+	getRebirthInfo.OnServerInvoke = WrapHandler("GetRebirthInfo", {}, {}, function(player)
+		return RebirthService:GetRebirthInfo(player)
+	end)
 
-		local success, result = pcall(function()
-			return RebirthService:GetRebirthInfo(player)
-		end)
-
-		if success then
-			return result
-		else
-			warn("GetRebirthInfo error:", result)
-			return {}
-		end
-	end
-
-	performRebirth.OnServerInvoke = function(player)
-		-- Rate limit check
-		if not CheckRateLimit(player, "PerformRebirth") then
-			return {Success = false, Message = "Too many requests. Please slow down."}
-		end
-
-		local success, result = pcall(function()
-			local rebirthSuccess, tierConfig = RebirthService:Rebirth(player)
-			return {Success = rebirthSuccess, TierConfig = tierConfig, Message = not rebirthSuccess and tierConfig or nil}
-		end)
-
-		if success then
-			return result
-		else
-			warn("PerformRebirth error:", result)
-			return {Success = false, Message = "Server error"}
-		end
-	end
+	performRebirth.OnServerInvoke = WrapHandler("PerformRebirth", {Success = false, Message = "Too many requests. Please slow down."}, {Success = false, Message = "Server error"}, function(player)
+		local rebirthSuccess, tierConfig = RebirthService:Rebirth(player)
+		return {Success = rebirthSuccess, TierConfig = tierConfig, Message = not rebirthSuccess and tierConfig or nil}
+	end)
 
 	-- Quest remotes
 	local getQuests = Instance.new("RemoteFunction")
@@ -265,42 +185,14 @@ local function CreateRemoteEvents()
 	claimQuest.Name = "ClaimQuest"
 	claimQuest.Parent = ReplicatedStorage
 
-	getQuests.OnServerInvoke = function(player)
-		-- Rate limit check
-		if not CheckRateLimit(player, "GetQuests") then
-			return {}
-		end
+	getQuests.OnServerInvoke = WrapHandler("GetQuests", {}, {}, function(player)
+		return QuestService:GetQuests(player)
+	end)
 
-		local success, result = pcall(function()
-			return QuestService:GetQuests(player)
-		end)
-
-		if success then
-			return result
-		else
-			warn("GetQuests error:", result)
-			return {}
-		end
-	end
-
-	claimQuest.OnServerInvoke = function(player, questId)
-		-- Rate limit check
-		if not CheckRateLimit(player, "ClaimQuest") then
-			return {Success = false, Message = "Too many requests. Please slow down."}
-		end
-
-		local success, result = pcall(function()
-			local claimSuccess, reward = QuestService:ClaimReward(player, questId)
-			return {Success = claimSuccess, Reward = reward, Message = not claimSuccess and reward or nil}
-		end)
-
-		if success then
-			return result
-		else
-			warn("ClaimQuest error:", result)
-			return {Success = false, Message = "Server error"}
-		end
-	end
+	claimQuest.OnServerInvoke = WrapHandler("ClaimQuest", {Success = false, Message = "Too many requests. Please slow down."}, {Success = false, Message = "Server error"}, function(player, questId)
+		local claimSuccess, reward = QuestService:ClaimReward(player, questId)
+		return {Success = claimSuccess, Reward = reward, Message = not claimSuccess and reward or nil}
+	end)
 
 	-- Pet remotes
 	local getPetData = Instance.new("RemoteFunction")
@@ -319,80 +211,24 @@ local function CreateRemoteEvents()
 	unequipPet.Name = "UnequipPet"
 	unequipPet.Parent = ReplicatedStorage
 
-	getPetData.OnServerInvoke = function(player)
-		-- Rate limit check
-		if not CheckRateLimit(player, "GetPetData") then
-			return {}
-		end
+	getPetData.OnServerInvoke = WrapHandler("GetPetData", {}, {}, function(player)
+		return PetService:GetPetData(player)
+	end)
 
-		local success, result = pcall(function()
-			return PetService:GetPetData(player)
-		end)
+	hatchEgg.OnServerInvoke = WrapHandler("HatchEgg", {Success = false, Message = "Too many requests. Please slow down."}, {Success = false, Message = "Server error"}, function(player, eggId)
+		local hatchSuccess, petOrMessage = PetService:HatchEgg(player, eggId)
+		return {Success = hatchSuccess, Pet = hatchSuccess and petOrMessage or nil, Message = not hatchSuccess and petOrMessage or nil}
+	end)
 
-		if success then
-			return result
-		else
-			warn("GetPetData error:", result)
-			return {}
-		end
-	end
+	equipPet.OnServerInvoke = WrapHandler("EquipPet", {Success = false, Message = "Too many requests. Please slow down."}, {Success = false, Message = "Server error"}, function(player, petId)
+		local equipSuccess, pet = PetService:EquipPet(player, petId)
+		return {Success = equipSuccess, Pet = pet}
+	end)
 
-	hatchEgg.OnServerInvoke = function(player, eggId)
-		-- Rate limit check
-		if not CheckRateLimit(player, "HatchEgg") then
-			return {Success = false, Message = "Too many requests. Please slow down."}
-		end
-
-		local success, result = pcall(function()
-			local hatchSuccess, petOrMessage = PetService:HatchEgg(player, eggId)
-			return {Success = hatchSuccess, Pet = hatchSuccess and petOrMessage or nil, Message = not hatchSuccess and petOrMessage or nil}
-		end)
-
-		if success then
-			return result
-		else
-			warn("HatchEgg error:", result)
-			return {Success = false, Message = "Server error"}
-		end
-	end
-
-	equipPet.OnServerInvoke = function(player, petId)
-		-- Rate limit check
-		if not CheckRateLimit(player, "EquipPet") then
-			return {Success = false, Message = "Too many requests. Please slow down."}
-		end
-
-		local success, result = pcall(function()
-			local equipSuccess, pet = PetService:EquipPet(player, petId)
-			return {Success = equipSuccess, Pet = pet}
-		end)
-
-		if success then
-			return result
-		else
-			warn("EquipPet error:", result)
-			return {Success = false, Message = "Server error"}
-		end
-	end
-
-	unequipPet.OnServerInvoke = function(player, petId)
-		-- Rate limit check
-		if not CheckRateLimit(player, "UnequipPet") then
-			return {Success = false, Message = "Too many requests. Please slow down."}
-		end
-
-		local success, result = pcall(function()
-			local unequipSuccess = PetService:UnequipPet(player, petId)
-			return {Success = unequipSuccess}
-		end)
-
-		if success then
-			return result
-		else
-			warn("UnequipPet error:", result)
-			return {Success = false, Message = "Server error"}
-		end
-	end
+	unequipPet.OnServerInvoke = WrapHandler("UnequipPet", {Success = false, Message = "Too many requests. Please slow down."}, {Success = false, Message = "Server error"}, function(player, petId)
+		local unequipSuccess = PetService:UnequipPet(player, petId)
+		return {Success = unequipSuccess}
+	end)
 
 	print("Remote events created")
 end
