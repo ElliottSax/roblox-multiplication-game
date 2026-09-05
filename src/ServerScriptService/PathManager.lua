@@ -6,6 +6,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local ObjectManager = require(script.Parent:WaitForChild("ObjectManager"))
 local CurrencyService = require(script.Parent:WaitForChild("CurrencyService"))
 local UpgradeService = require(script.Parent:WaitForChild("UpgradeService"))
+local PlayerUtils = require(script.Parent:WaitForChild("PlayerUtils"))
 
 local PathManager = {}
 PathManager.PathParts = {}
@@ -144,23 +145,17 @@ function PathManager:OnObjectCollected(hit)
 	end)
 end
 
+-- Max distance to count for END-OF-RUNWAY collection credit. The collection
+-- zone sits at Config.Path.Length + 20 studs from spawn, and a player who
+-- pushed near an early gate (as little as ~30 studs in) can legitimately
+-- still be that far from it when the object finishes coasting/relaunching
+-- through every gate - unlike MultiplierService's tight gate-hit radius,
+-- which only needs to cover the small area right around one gate.
+local COLLECTION_CREDIT_RADIUS = Config.Path.Length + 50
+
 -- Find the nearest player to a position
 function PathManager:FindNearestPlayer(position)
-	local Players = game:GetService("Players")
-	local nearestPlayer = nil
-	local shortestDistance = 100 -- Max distance to count (matches MultiplierService:FindNearestPlayer)
-
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			local distance = (player.Character.HumanoidRootPart.Position - position).Magnitude
-			if distance < shortestDistance then
-				shortestDistance = distance
-				nearestPlayer = player
-			end
-		end
-	end
-
-	return nearestPlayer
+	return PlayerUtils.FindNearestPlayer(position, COLLECTION_CREDIT_RADIUS)
 end
 
 -- Apply push force to objects near player

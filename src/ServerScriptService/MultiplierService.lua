@@ -2,9 +2,13 @@
 -- Handles multiplier gates that clone/add objects when they pass through
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local ObjectManager = require(script.Parent:WaitForChild("ObjectManager"))
+local PlayerUtils = require(script.Parent:WaitForChild("PlayerUtils"))
+
+-- Max distance to count for gate-hit combo tracking - tight on purpose, this
+-- only needs to confirm a player is standing right at the gate that fired.
+local GATE_CREDIT_RADIUS = 100
 
 local MultiplierService = {}
 MultiplierService.Gates = {}
@@ -164,7 +168,15 @@ function MultiplierService:OnObjectTouched(gate, hit, gateConfig)
 	-- Apply the multiplier effect (with combo bonus)
 	local effectiveValue = math.floor(gateConfig.Value * comboMultiplier)
 	if nearestPlayer and self.UpgradeService and math.random() < self.UpgradeService:GetUpgradeEffect(nearestPlayer, "LuckyGates") then
-		effectiveValue = effectiveValue * 2
+		if gateConfig.Type == "Divide" then
+			-- effectiveValue is the DIVISOR here - a bigger divisor keeps FEWER
+			-- objects, so "lucky" means a smaller divisor, not effectiveValue * 2
+			-- (which would have halved the player's surviving objects instead
+			-- of doubling their reward)
+			effectiveValue = math.max(1, math.floor(effectiveValue / 2))
+		else
+			effectiveValue = effectiveValue * 2
+		end
 	end
 	local totalObjectsCreated = 0
 
@@ -445,20 +457,7 @@ end
 
 -- Find the nearest player to a position
 function MultiplierService:FindNearestPlayer(position)
-	local nearestPlayer = nil
-	local shortestDistance = 100 -- Max distance to count
-
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			local distance = (player.Character.HumanoidRootPart.Position - position).Magnitude
-			if distance < shortestDistance then
-				shortestDistance = distance
-				nearestPlayer = player
-			end
-		end
-	end
-
-	return nearestPlayer
+	return PlayerUtils.FindNearestPlayer(position, GATE_CREDIT_RADIUS)
 end
 
 -- Clear all gates

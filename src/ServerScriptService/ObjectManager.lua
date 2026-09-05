@@ -254,19 +254,30 @@ function ObjectManager:AddObjects(objectType, position, count)
 	return newObjects
 end
 
--- Remove an object from the game
+-- Remove an object from the game. Purges the ActiveObjects entry whether or
+-- not the object still needs Destroy()'d - CollectObject/SubtractObjects/
+-- DivideObjects all Destroy() objects directly, and the watchdog calls this
+-- specifically when an object is ALREADY Parent-nil, so requiring
+-- object.Parent to be truthy (the old guard) meant those entries were never
+-- purged and ActiveObjects/ObjectCount leaked forever.
 function ObjectManager:RemoveObject(object)
-	if object and object.Parent then
-		object:Destroy()
-		self.ObjectCount -= 1
+	if not object then return end
 
-		-- Remove from active objects list
-		for i, obj in ipairs(self.ActiveObjects) do
-			if obj == object then
-				table.remove(self.ActiveObjects, i)
-				break
-			end
+	local removed = false
+	for i, obj in ipairs(self.ActiveObjects) do
+		if obj == object then
+			table.remove(self.ActiveObjects, i)
+			removed = true
+			break
 		end
+	end
+
+	if object.Parent then
+		object:Destroy()
+	end
+
+	if removed then
+		self.ObjectCount -= 1
 	end
 end
 
